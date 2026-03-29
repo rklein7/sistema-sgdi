@@ -1,32 +1,26 @@
 {% extends "base.html" %}
 
 {% block content %}
-<h2>Detalhes da Demanda #{{ demanda[0] }}</h2>
+<h2>Detalhes da Demanda #{{ demanda['id'] }}</h2>
+<h3>{{ demanda['titulo'] }}</h3>
+<p>{{ demanda['descricao'] }}</p>
+<p><strong>Solicitante:</strong> {{ demanda['solicitante'] }}</p>
+<p><strong>Data de Criação:</strong> {{ demanda['data_criacao'] }}</p>
 
-<div style="border:1px solid #ccc; padding:15px; margin-bottom:20px;">
-    <h3>{{ demanda[1] }}</h3>
-    <p><strong>Descrição:</strong></p>
-    <p>{{ demanda[2] }}</p>
-    
-    <p><strong>Solicitante:</strong> {{ demanda[3] }}</p>
-    <p><strong>Data de Criação:</strong> {{ demanda[4] }}</p>
-    
-    <br>
-    <a href="/editar/{{ demanda[0] }}"><button>Editar</button></a>
-    <a href="/"><button>Voltar</button></a>
-</div>
+<a href="/editar/{{ demanda['id'] }}"><button>Editar</button></a>
+<a href="/"><button>Voltar</button></a>
 
 <h3>Comentários</h3>
 
 {% for comentario in comentarios %}
 <div style="background:#f0f0f0; padding:10px; margin:10px 0;">
-    <p><strong>{{ comentario[3] }}</strong> em {{ comentario[4] }}</p>
-    <p>{{ comentario[2] }}</p>
+    <p><strong>{{ comentario['autor'] }}</strong> em {{ comentario['data'] }}</p>
+    <p>{{ comentario['comentario'] }}</p>
 </div>
 {% endfor %}
 
 <h4>Adicionar Comentário</h4>
-<form method="POST" action="/adicionar_comentario/{{ demanda[0] }}">
+<form method="POST" action="/adicionar_comentario/{{ demanda['id'] }}">
     <div>
         <label>Seu nome:</label><br>
         <input type="text" name="autor" size="30">

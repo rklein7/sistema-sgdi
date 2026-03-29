@@ -17,16 +17,16 @@
     <tbody>
         {% for demanda in demandas %}
         <tr>
-            <td>{{ demanda[0] }}</td>
-            <td>{{ demanda[1] }}</td>
-            <td>{{ demanda[3] }}</td>
-            <td>{{ demanda[4] }}</td>
+            <td>{{ demanda['id'] }}</td>
+            <td>{{ demanda['titulo'] }}</td>
+            <td>{{ demanda['solicitante'] }}</td>
+            <td>{{ demanda['data_criacao'] }}</td>
             <td>
-                <a href="/detalhes/{{ demanda[0] }}">Ver</a>
+                <a href="/detalhes/{{ demanda['id'] }}">Ver</a>
                 |
-                <a href="/editar/{{ demanda[0] }}">Editar</a>
+                <a href="/editar/{{ demanda['id'] }}">Editar</a>
                 |
-                <a href="/deletar/{{ demanda[0] }}" style="color:red;">Deletar</a>
+                <a href="/deletar/{{ demanda['id'] }}" style="color:red;">Deletar</a>
             </td>
         </tr>
         {% endfor %}
