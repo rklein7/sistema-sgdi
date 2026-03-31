@@ -2,7 +2,20 @@
 
 {% block content %}
 <h2>Detalhes da Demanda #{{ demanda['id'] }}</h2>
+
 <h3>{{ demanda['titulo'] }}</h3>
+
+<p>
+    <strong>Prioridade:</strong>
+    {% if demanda['prioridade'] == 'Alta' %}
+        <span style="background-color:#e74c3c; color:white; padding: 2px 8px; border-radius: 4px; font-size: 0.85em;">🔴 Alta</span>
+    {% elif demanda['prioridade'] == 'Média' %}
+        <span style="background-color:#f39c12; color:white; padding: 2px 8px; border-radius: 4px; font-size: 0.85em;">🟡 Média</span>
+    {% else %}
+        <span style="background-color:#27ae60; color:white; padding: 2px 8px; border-radius: 4px; font-size: 0.85em;">🟢 Baixa</span>
+    {% endif %}
+</p>
+
 <p>{{ demanda['descricao'] }}</p>
 <p><strong>Solicitante:</strong> {{ demanda['solicitante'] }}</p>
 <p><strong>Data de Criação:</strong> {{ demanda['data_criacao'] }}</p>
@@ -10,25 +23,31 @@
 <a href="/editar/{{ demanda['id'] }}"><button>Editar</button></a>
 <a href="/"><button>Voltar</button></a>
 
+<hr style="margin: 24px 0;">
+
 <h3>Comentários</h3>
 
-{% for comentario in comentarios %}
-<div style="background:#f0f0f0; padding:10px; margin:10px 0;">
-    <p><strong>{{ comentario['autor'] }}</strong> em {{ comentario['data'] }}</p>
-    <p>{{ comentario['comentario'] }}</p>
-</div>
-{% endfor %}
+{% if comentarios %}
+    {% for comentario in comentarios %}
+    <div style="background:#f0f0f0; padding:10px; margin:10px 0; border-left: 4px solid #ccc; border-radius: 4px;">
+        <p style="margin: 0 0 6px 0;"><strong>{{ comentario['autor'] }}</strong> <span style="color:#888; font-size:0.85em;">em {{ comentario['data'] }}</span></p>
+        <p style="margin: 0;">{{ comentario['comentario'] }}</p>
+    </div>
+    {% endfor %}
+{% else %}
+    <p style="color: #888;">Nenhum comentário ainda.</p>
+{% endif %}
 
 <h4>Adicionar Comentário</h4>
 <form method="POST" action="/adicionar_comentario/{{ demanda['id'] }}">
     <div>
         <label>Seu nome:</label><br>
-        <input type="text" name="autor" size="30">
+        <input type="text" name="autor" size="30" required>
     </div>
     <br>
     <div>
         <label>Comentário:</label><br>
-        <textarea name="comentario" rows="4" cols="50"></textarea>
+        <textarea name="comentario" rows="4" cols="50" required></textarea>
     </div>
     <br>
     <button type="submit">Enviar Comentário</button>

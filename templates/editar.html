@@ -3,13 +3,54 @@
 {% block content %}
 <h2>Editar Demanda</h2>
 
-
 <form method="POST" action="/editar/{{ demanda['id'] }}">
-    <input type="text" name="titulo" value="{{ demanda['titulo'] }}" size="50">
-    <textarea name="descricao" rows="5" cols="50">{{ demanda['descricao'] }}</textarea>
-    <input type="text" name="solicitante" value="{{ demanda['solicitante'] }}">
-    <input type="text" value="{{ demanda['data_criacao'] }}" disabled>
-    
+    <div>
+        <label>Título:</label><br>
+        <input type="text" name="titulo" value="{{ demanda['titulo'] }}" size="50" required>
+    </div>
+    <br>
+
+    <div>
+        <label>Descrição:</label><br>
+        <textarea name="descricao" rows="5" cols="50">{{ demanda['descricao'] }}</textarea>
+    </div>
+    <br>
+
+    <div>
+        <label>Solicitante:</label><br>
+        <input type="text" name="solicitante" value="{{ demanda['solicitante'] }}" required>
+    </div>
+    <br>
+
+    <div>
+        <label>Data de criação:</label><br>
+        <input type="text" value="{{ demanda['data_criacao'] }}" disabled style="color: #888;">
+    </div>
+    <br>
+
+    <div>
+        <label>Prioridade:</label><br>
+        <select name="prioridade">
+            {% for p in prioridades %}
+                {# Desabilitar opções de prioridade maior que a atual #}
+                {% if loop.index < loop.revindex %}
+                {% endif %}
+                <option value="{{ p }}"
+                    {% if p == demanda['prioridade'] %}selected{% endif %}
+                    {% if p == 'Alta' and demanda['prioridade'] != 'Alta' %}disabled style="color:#ccc;"{% endif %}
+                    {% if p == 'Média' and demanda['prioridade'] == 'Baixa' %}disabled style="color:#ccc;"{% endif %}
+                >
+                    {% if p == 'Alta' %}🔴{% elif p == 'Média' %}🟡{% else %}🟢{% endif %}
+                    {{ p }}
+                    {% if p == 'Alta' and demanda['prioridade'] != 'Alta' %}(não permitido){% endif %}
+                    {% if p == 'Média' and demanda['prioridade'] == 'Baixa' %}(não permitido){% endif %}
+                </option>
+            {% endfor %}
+        </select>
+        <small style="color: #888; margin-left: 8px;">A prioridade só pode ser reduzida.</small>
+    </div>
+    <br>
+
     <button type="submit">Atualizar</button>
     <a href="/"><button type="button">Cancelar</button></a>
 </form>

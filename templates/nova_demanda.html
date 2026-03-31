@@ -6,22 +6,36 @@
 <form method="POST" action="/nova_demanda">
     <div>
         <label>Título:</label><br>
-        <input type="text" name="titulo" size="50">
+        <input type="text" name="titulo" size="50" required>
     </div>
     <br>
-    
+
     <div>
         <label>Descrição:</label><br>
         <textarea name="descricao" rows="5" cols="50"></textarea>
     </div>
     <br>
-    
+
     <div>
         <label>Solicitante:</label><br>
-        <input type="text" name="solicitante">
+        <input type="text" name="solicitante" required>
     </div>
     <br>
-    
+
+    <div>
+        <label>Prioridade:</label><br>
+        <select name="prioridade">
+            {% for p in prioridades %}
+                <option value="{{ p }}" {% if p == 'Média' %}selected{% endif %}>
+                    {% if p == 'Alta' %}🔴{% elif p == 'Média' %}🟡{% else %}🟢{% endif %}
+                    {{ p }}
+                </option>
+            {% endfor %}
+        </select>
+        <small style="color: #888; margin-left: 8px;">Após a criação, a prioridade só pode ser reduzida.</small>
+    </div>
+    <br>
+
     <button type="submit">Salvar</button>
     <a href="/"><button type="button">Cancelar</button></a>
 </form>
