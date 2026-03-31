@@ -1,3 +1,13 @@
 venv/
 env/
 .envenv/
+
+# Variáveis de ambiente
+.env
+.env.*
+
+# Cache/artefatos Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
