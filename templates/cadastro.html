@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2>Cadastro de Usuário</h2>
+
+<form method="POST" action="/cadastro">
+    <div>
+        <label>Nome:</label><br>
+        <input type="text" name="nome" size="50" required>
+    </div>
+    <br>
+
+    <div>
+        <label>E-mail:</label><br>
+        <input type="email" name="email" size="50" required>
+    </div>
+    <br>
+
+    <div>
+        <label>Cargo:</label><br>
+        <input type="text" name="cargo" size="40" required>
+    </div>
+    <br>
+
+    <div>
+        <label>Senha:</label><br>
+        <input type="password" name="senha" size="40" required>
+    </div>
+    <br>
+
+    <div>
+        <label>Confirmar senha:</label><br>
+        <input type="password" name="confirmar_senha" size="40" required>
+    </div>
+    <br>
+
+    <button type="submit">Cadastrar</button>
+</form>
+
+<p>
+    Já possui conta?
+    <a href="/login">Fazer login</a>
+</p>
+{% endblock %}

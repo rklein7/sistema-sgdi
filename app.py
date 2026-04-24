@@ -1,7 +1,9 @@
-from flask import Flask, render_template, request, redirect, flash
+from flask import Flask, render_template, request, redirect, flash, session
 from supabase import create_client, Client
 from dotenv import load_dotenv
 from datetime import datetime, timezone
+from functools import wraps
+from werkzeug.security import generate_password_hash, check_password_hash
 import os
 
 load_dotenv()
@@ -28,7 +30,101 @@ def calcular_dias_parada(data_str):
         return 0
 
 
+def login_required(view_func):
+    @wraps(view_func)
+    def wrapped_view(*args, **kwargs):
+        if not session.get('usuario_id'):
+            flash('Faça login para continuar')
+            return redirect('/login')
+        return view_func(*args, **kwargs)
+    return wrapped_view
+
+
+@app.context_processor
+def inject_usuario_logado():
+    return {
+        'usuario_logado': {
+            'id': session.get('usuario_id'),
+            'nome': session.get('usuario_nome'),
+            'cargo': session.get('usuario_cargo'),
+        }
+    }
+
+
+@app.route('/cadastro', methods=['GET', 'POST'])
+def cadastro():
+    if request.method == 'POST':
+        nome = request.form.get('nome', '').strip()
+        email = request.form.get('email', '').strip().lower()
+        senha = request.form.get('senha', '')
+        confirmar_senha = request.form.get('confirmar_senha', '')
+        cargo = request.form.get('cargo', '').strip()
+
+        if senha != confirmar_senha:
+            flash('As senhas não coincidem')
+            return redirect('/cadastro')
+
+        usuario_existente = (
+            supabase.table('usuarios')
+            .select('id')
+            .eq('email', email)
+            .execute()
+        )
+
+        if usuario_existente.data:
+            flash('E-mail já cadastrado')
+            return redirect('/cadastro')
+
+        senha_hash = generate_password_hash(senha)
+        dados = {
+            'nome': nome,
+            'email': email,
+            'senha_hash': senha_hash,
+            'cargo': cargo,
+            'criado_em': datetime.now(timezone.utc).isoformat(),
+        }
+        supabase.table('usuarios').insert(dados).execute()
+        flash('Cadastro realizado com sucesso!')
+        return redirect('/login')
+
+    return render_template('cadastro.html')
+
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        email = request.form.get('email', '').strip().lower()
+        senha = request.form.get('senha', '')
+        resposta = (
+            supabase.table('usuarios')
+            .select('*')
+            .eq('email', email)
+            .execute()
+        )
+
+        usuario = resposta.data[0] if resposta.data else None
+        if not usuario or not check_password_hash(usuario['senha_hash'], senha):
+            flash('E-mail ou senha incorretos')
+            return redirect('/login')
+
+        session['usuario_id'] = usuario['id']
+        session['usuario_nome'] = usuario['nome']
+        session['usuario_cargo'] = usuario['cargo']
+
+        flash(f"Bem-vindo, {usuario['nome']}!")
+        return redirect('/')
+
+    return render_template('login.html')
+
+
+@app.route('/logout')
+def logout():
+    session.clear()
+    return redirect('/login')
+
+
 @app.route('/')
+@login_required
 def index():
     filtro = request.args.get('prioridade', 'Todas')
     query = supabase.table('demandas').select('*')
@@ -50,6 +146,7 @@ def index():
 
 
 @app.route('/nova_demanda', methods=['GET', 'POST'])
+@login_required
 def nova_demanda():
     if request.method == 'POST':
         prioridade = request.form.get('prioridade', 'Média')
@@ -62,6 +159,7 @@ def nova_demanda():
             'descricao':   request.form['descricao'],
             'solicitante': request.form['solicitante'],
             'prioridade':  prioridade,
+            'usuario_id':  session['usuario_id'],
         }
         supabase.table('demandas').insert(dados).execute()
         flash('Demanda criada com sucesso!')
@@ -70,6 +168,7 @@ def nova_demanda():
 
 
 @app.route('/editar/<int:id>', methods=['GET', 'POST'])
+@login_required
 def editar(id):
     res = supabase.table('demandas').select('*').eq('id', id).single().execute()
     demanda_atual = res.data
@@ -100,6 +199,7 @@ def editar(id):
 
 
 @app.route('/deletar/<int:id>')
+@login_required
 def deletar(id):
     supabase.table('demandas').delete().eq('id', id).execute()
     flash('Demanda deletada!')
@@ -107,6 +207,7 @@ def deletar(id):
 
 
 @app.route('/buscar')
+@login_required
 def buscar():
     termo = request.args.get('q', '')
     res = supabase.table('demandas').select('*').ilike('titulo', f'%{termo}%').execute()
@@ -122,6 +223,7 @@ def buscar():
 
 
 @app.route('/detalhes/<int:id>')
+@login_required
 def detalhes(id):
     demanda = supabase.table('demandas').select('*').eq('id', id).single().execute()
     comentarios = supabase.table('comentarios').select('*').eq('demanda_id', id).order('data').execute()
@@ -129,6 +231,7 @@ def detalhes(id):
 
 
 @app.route('/adicionar_comentario/<int:demanda_id>', methods=['POST'])
+@login_required
 def adicionar_comentario(demanda_id):
     dados = {
         'demanda_id': demanda_id,
