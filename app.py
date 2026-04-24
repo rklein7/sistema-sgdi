@@ -157,7 +157,7 @@ def nova_demanda():
         dados = {
             'titulo':      request.form['titulo'],
             'descricao':   request.form['descricao'],
-            'solicitante': request.form['solicitante'],
+            'solicitante': session['usuario_nome'],
             'prioridade':  prioridade,
             'usuario_id':  session['usuario_id'],
         }
