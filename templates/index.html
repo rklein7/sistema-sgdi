@@ -1,96 +1,58 @@
 {% extends "base.html" %}
 
 {% block content %}
-<h2>Lista de Demandas</h2>
-
-<!-- Filtro por prioridade -->
-<div style="margin-bottom: 16px;">
-    <strong>Filtrar por prioridade:</strong>
-    <a href="/?prioridade=Todas"
-       style="margin-left: 8px; {% if filtro == 'Todas' %}font-weight: bold; text-decoration: underline;{% endif %}">
-        Todas
-    </a>
-    <a href="/?prioridade=Alta"
-       style="margin-left: 8px; color: #c0392b; {% if filtro == 'Alta' %}font-weight: bold; text-decoration: underline;{% endif %}">
-        🔴 Alta
-    </a>
-    <a href="/?prioridade=Média"
-       style="margin-left: 8px; color: #d68910; {% if filtro == 'Média' %}font-weight: bold; text-decoration: underline;{% endif %}">
-        🟡 Média
-    </a>
-    <a href="/?prioridade=Baixa"
-       style="margin-left: 8px; color: #1e8449; {% if filtro == 'Baixa' %}font-weight: bold; text-decoration: underline;{% endif %}">
-        🟢 Baixa
-    </a>
+<div class="page-header">
+    <h1 class="page-title">Lista de Demandas</h1>
+    <a class="button" href="/nova_demanda">+ Nova Demanda</a>
 </div>
 
-<table border="1" cellpadding="10" cellspacing="0" width="100%">
-    <thead>
-        <tr bgcolor="#cccccc">
-            <th>ID</th>
-            <th>Título</th>
-            <th>Prioridade</th>
-            <th>Solicitante</th>
-            <th>Data</th>
-            <th>Status</th>
-            <th>Ações</th>
-        </tr>
-    </thead>
-    <tbody>
+<div class="filter-bar" aria-label="Filtro por prioridade">
+    <span class="filter-label">Filtrar por prioridade</span>
+    <a class="filter-link {% if filtro == 'Todas' %}active{% endif %}" href="/?prioridade=Todas">Todas</a>
+    <a class="filter-link {% if filtro == 'Alta' %}active{% endif %}" href="/?prioridade=Alta">Alta</a>
+    <a class="filter-link {% if filtro == 'Média' %}active{% endif %}" href="/?prioridade=Média">Média</a>
+    <a class="filter-link {% if filtro == 'Baixa' %}active{% endif %}" href="/?prioridade=Baixa">Baixa</a>
+</div>
+
+{% if demandas %}
+    <section class="demand-grid" aria-label="Demandas">
         {% for demanda in demandas %}
+            <article class="demand-card">
+                <div class="demand-card__top">
+                    <div>
+                        <span class="demand-id">#{{ demanda['id'] }}</span>
+                        <h2 class="demand-title">{{ demanda['titulo'] }}</h2>
+                    </div>
 
-        {% if demanda['prioridade'] == 'Alta' %}
-            <tr style="background-color: #fdecea;">
-        {% else %}
-            <tr>
-        {% endif %}
+                    {% if demanda['prioridade'] == 'Alta' %}
+                        <span class="badge badge--priority-high">Alta</span>
+                    {% elif demanda['prioridade'] == 'Média' %}
+                        <span class="badge badge--priority-medium">Média</span>
+                    {% else %}
+                        <span class="badge badge--priority-low">Baixa</span>
+                    {% endif %}
+                </div>
 
-            <td>{{ demanda['id'] }}</td>
-            <td>{{ demanda['titulo'] }}</td>
+                <div class="demand-meta">
+                    <span>Solicitante: {{ demanda['solicitante'] }}</span>
+                    <span>Data: {{ demanda['data_criacao'] }}</span>
+                </div>
 
-            <td style="text-align: center;">
-                {% if demanda['prioridade'] == 'Alta' %}
-                    <span style="background-color:#e74c3c; color:white; padding: 2px 8px; border-radius: 4px; font-size: 0.85em;">
-                        🔴 Alta
-                    </span>
-                {% elif demanda['prioridade'] == 'Média' %}
-                    <span style="background-color:#f39c12; color:white; padding: 2px 8px; border-radius: 4px; font-size: 0.85em;">
-                        🟡 Média
-                    </span>
-                {% else %}
-                    <span style="background-color:#27ae60; color:white; padding: 2px 8px; border-radius: 4px; font-size: 0.85em;">
-                        🟢 Baixa
-                    </span>
-                {% endif %}
-            </td>
-
-            <td>{{ demanda['solicitante'] }}</td>
-            <td>{{ demanda['data_criacao'] }}</td>
-
-            <td style="text-align: center;">
                 {% if demanda['dias_parada'] >= dias_parada_limite %}
-                    <span style="background-color:#7f8c8d; color:white; padding: 2px 8px; border-radius: 4px; font-size: 0.85em;"
-                          title="Sem atualização há {{ demanda['dias_parada'] }} dias">
-                        ⏱ Parada
-                    </span>
+                    <span class="badge badge--stalled" title="Sem atualização há {{ demanda['dias_parada'] }} dias">Parada</span>
                 {% else %}
-                    <span style="color: #888; font-size: 0.85em;">Em andamento</span>
+                    <span class="badge badge--status-progress">Em andamento</span>
                 {% endif %}
-            </td>
 
-            <td>
-                <a href="/detalhes/{{ demanda['id'] }}">Ver</a>
-                |
-                <a href="/editar/{{ demanda['id'] }}">Editar</a>
-                |
-                <a href="/deletar/{{ demanda['id'] }}" style="color:red;">Deletar</a>
-            </td>
-        </tr>
+                <div class="demand-actions">
+                    <a class="button button--secondary button--small" href="/detalhes/{{ demanda['id'] }}">Ver</a>
+                    <a class="button button--secondary button--small" href="/editar/{{ demanda['id'] }}">Editar</a>
+                    <a class="button button--danger button--small" href="/deletar/{{ demanda['id'] }}">Deletar</a>
+                </div>
+            </article>
         {% endfor %}
-    </tbody>
-</table>
-
-<br><br>
-<a href="/nova_demanda"><button>+ Nova Demanda</button></a>
-
+    </section>
+{% else %}
+    <div class="empty-state">Nenhuma demanda encontrada.</div>
+{% endif %}
 {% endblock %}

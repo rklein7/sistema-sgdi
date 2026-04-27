@@ -1,56 +1,66 @@
 {% extends "base.html" %}
 
 {% block content %}
-<h2>Detalhes da Demanda #{{ demanda['id'] }}</h2>
+<div class="page-header">
+    <h1 class="page-title">Detalhes da Demanda #{{ demanda['id'] }}</h1>
+</div>
 
-<h3>{{ demanda['titulo'] }}</h3>
+<section class="detail-card">
+    <div class="demand-card__top">
+        <h2 class="detail-title">{{ demanda['titulo'] }}</h2>
+        {% if demanda['prioridade'] == 'Alta' %}
+            <span class="badge badge--priority-high">Alta</span>
+        {% elif demanda['prioridade'] == 'Média' %}
+            <span class="badge badge--priority-medium">Média</span>
+        {% else %}
+            <span class="badge badge--priority-low">Baixa</span>
+        {% endif %}
+    </div>
 
-<p>
-    <strong>Prioridade:</strong>
-    {% if demanda['prioridade'] == 'Alta' %}
-        <span style="background-color:#e74c3c; color:white; padding: 2px 8px; border-radius: 4px; font-size: 0.85em;">🔴 Alta</span>
-    {% elif demanda['prioridade'] == 'Média' %}
-        <span style="background-color:#f39c12; color:white; padding: 2px 8px; border-radius: 4px; font-size: 0.85em;">🟡 Média</span>
+    <p class="detail-description">{{ demanda['descricao'] }}</p>
+
+    <div class="detail-list">
+        <div class="detail-row"><strong>Solicitante:</strong> {{ demanda['solicitante'] }}</div>
+        <div class="detail-row"><strong>Data de Criação:</strong> {{ demanda['data_criacao'] }}</div>
+    </div>
+
+    <div class="detail-actions">
+        <a class="button button--secondary" href="/editar/{{ demanda['id'] }}">Editar</a>
+        <a class="button button--secondary" href="/">Voltar</a>
+    </div>
+</section>
+
+<section class="comments-panel">
+    <h2 class="section-title">Comentários</h2>
+
+    {% if comentarios %}
+        <div class="comments-list">
+            {% for comentario in comentarios %}
+                <article class="comment">
+                    <p class="comment-meta"><strong>{{ comentario['autor'] }}</strong> em {{ comentario['data'] }}</p>
+                    <p class="comment-text">{{ comentario['comentario'] }}</p>
+                </article>
+            {% endfor %}
+        </div>
     {% else %}
-        <span style="background-color:#27ae60; color:white; padding: 2px 8px; border-radius: 4px; font-size: 0.85em;">🟢 Baixa</span>
+        <p class="muted">Nenhum comentário ainda.</p>
     {% endif %}
-</p>
 
-<p>{{ demanda['descricao'] }}</p>
-<p><strong>Solicitante:</strong> {{ demanda['solicitante'] }}</p>
-<p><strong>Data de Criação:</strong> {{ demanda['data_criacao'] }}</p>
+    <h3 class="section-title">Adicionar Comentário</h3>
+    <form class="stack-form" method="POST" action="/adicionar_comentario/{{ demanda['id'] }}">
+        <div class="field">
+            <label for="autor">Seu nome</label>
+            <input id="autor" type="text" name="autor" required>
+        </div>
 
-<a href="/editar/{{ demanda['id'] }}"><button>Editar</button></a>
-<a href="/"><button>Voltar</button></a>
+        <div class="field">
+            <label for="comentario">Comentário</label>
+            <textarea id="comentario" name="comentario" rows="4" required></textarea>
+        </div>
 
-<hr style="margin: 24px 0;">
-
-<h3>Comentários</h3>
-
-{% if comentarios %}
-    {% for comentario in comentarios %}
-    <div style="background:#f0f0f0; padding:10px; margin:10px 0; border-left: 4px solid #ccc; border-radius: 4px;">
-        <p style="margin: 0 0 6px 0;"><strong>{{ comentario['autor'] }}</strong> <span style="color:#888; font-size:0.85em;">em {{ comentario['data'] }}</span></p>
-        <p style="margin: 0;">{{ comentario['comentario'] }}</p>
-    </div>
-    {% endfor %}
-{% else %}
-    <p style="color: #888;">Nenhum comentário ainda.</p>
-{% endif %}
-
-<h4>Adicionar Comentário</h4>
-<form method="POST" action="/adicionar_comentario/{{ demanda['id'] }}">
-    <div>
-        <label>Seu nome:</label><br>
-        <input type="text" name="autor" size="30" required>
-    </div>
-    <br>
-    <div>
-        <label>Comentário:</label><br>
-        <textarea name="comentario" rows="4" cols="50" required></textarea>
-    </div>
-    <br>
-    <button type="submit">Enviar Comentário</button>
-</form>
-
+        <div class="form-actions">
+            <button type="submit">Enviar Comentário</button>
+        </div>
+    </form>
+</section>
 {% endblock %}

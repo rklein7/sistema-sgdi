@@ -1,43 +1,42 @@
 {% extends "base.html" %}
 
 {% block content %}
-<h2>Cadastro de Usuário</h2>
+<section class="form-card">
+    <h1 class="page-title">Cadastro de Usuário</h1>
 
-<form method="POST" action="/cadastro">
-    <div>
-        <label>Nome:</label><br>
-        <input type="text" name="nome" size="50" required>
-    </div>
-    <br>
+    <form method="POST" action="/cadastro">
+        <div class="field">
+            <label for="nome">Nome</label>
+            <input id="nome" type="text" name="nome" required>
+        </div>
 
-    <div>
-        <label>E-mail:</label><br>
-        <input type="email" name="email" size="50" required>
-    </div>
-    <br>
+        <div class="field">
+            <label for="email">E-mail</label>
+            <input id="email" type="email" name="email" required>
+        </div>
 
-    <div>
-        <label>Cargo:</label><br>
-        <input type="text" name="cargo" size="40" required>
-    </div>
-    <br>
+        <div class="field">
+            <label for="cargo">Cargo</label>
+            <input id="cargo" type="text" name="cargo" required>
+        </div>
 
-    <div>
-        <label>Senha:</label><br>
-        <input type="password" name="senha" size="40" required>
-    </div>
-    <br>
+        <div class="field">
+            <label for="senha">Senha</label>
+            <input id="senha" type="password" name="senha" required>
+        </div>
 
-    <div>
-        <label>Confirmar senha:</label><br>
-        <input type="password" name="confirmar_senha" size="40" required>
-    </div>
-    <br>
+        <div class="field">
+            <label for="confirmar_senha">Confirmar senha</label>
+            <input id="confirmar_senha" type="password" name="confirmar_senha" required>
+        </div>
 
-    <button type="submit">Cadastrar</button>
-</form>
+        <div class="form-actions">
+            <button type="submit">Cadastrar</button>
+        </div>
+    </form>
+</section>
 
-<p>
+<p class="auth-switch">
     Já possui conta?
     <a href="/login">Fazer login</a>
 </p>

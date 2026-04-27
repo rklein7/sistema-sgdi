@@ -1,25 +1,27 @@
 {% extends "base.html" %}
 
 {% block content %}
-<h2>Login</h2>
+<section class="form-card">
+    <h1 class="page-title">Login</h1>
 
-<form method="POST" action="/login">
-    <div>
-        <label>E-mail:</label><br>
-        <input type="email" name="email" size="40" required>
-    </div>
-    <br>
+    <form method="POST" action="/login">
+        <div class="field">
+            <label for="email">E-mail</label>
+            <input id="email" type="email" name="email" required>
+        </div>
 
-    <div>
-        <label>Senha:</label><br>
-        <input type="password" name="senha" size="40" required>
-    </div>
-    <br>
+        <div class="field">
+            <label for="senha">Senha</label>
+            <input id="senha" type="password" name="senha" required>
+        </div>
 
-    <button type="submit">Entrar</button>
-</form>
+        <div class="form-actions">
+            <button type="submit">Entrar</button>
+        </div>
+    </form>
+</section>
 
-<p>
+<p class="auth-switch">
     Ainda não tem conta?
     <a href="/cadastro">Criar cadastro</a>
 </p>

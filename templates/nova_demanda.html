@@ -1,43 +1,39 @@
 {% extends "base.html" %}
 
 {% block content %}
-<h2>Nova Demanda</h2>
+<section class="form-card">
+    <h1 class="page-title">Nova Demanda</h1>
 
-<form method="POST" action="/nova_demanda">
-    <div>
-        <label>Título:</label><br>
-        <input type="text" name="titulo" size="50" required>
-    </div>
-    <br>
+    <form method="POST" action="/nova_demanda">
+        <div class="field">
+            <label for="titulo">Título</label>
+            <input id="titulo" type="text" name="titulo" required>
+        </div>
 
-    <div>
-        <label>Descrição:</label><br>
-        <textarea name="descricao" rows="5" cols="50"></textarea>
-    </div>
-    <br>
+        <div class="field">
+            <label for="descricao">Descrição</label>
+            <textarea id="descricao" name="descricao" rows="5"></textarea>
+        </div>
 
-    <div class="campo-info">
-        <label>Solicitante</label>
-        <p>{{ session['usuario_nome'] }}</p>
-    </div>
-    <br>
+        <div class="field">
+            <label>Solicitante</label>
+            <p class="readonly-value">{{ session['usuario_nome'] }}</p>
+        </div>
 
-    <div>
-        <label>Prioridade:</label><br>
-        <select name="prioridade">
-            {% for p in prioridades %}
-                <option value="{{ p }}" {% if p == 'Média' %}selected{% endif %}>
-                    {% if p == 'Alta' %}🔴{% elif p == 'Média' %}🟡{% else %}🟢{% endif %}
-                    {{ p }}
-                </option>
-            {% endfor %}
-        </select>
-        <small style="color: #888; margin-left: 8px;">Após a criação, a prioridade só pode ser reduzida.</small>
-    </div>
-    <br>
+        <div class="field">
+            <label for="prioridade">Prioridade</label>
+            <select id="prioridade" name="prioridade">
+                {% for p in prioridades %}
+                    <option value="{{ p }}" {% if p == 'Média' %}selected{% endif %}>{{ p }}</option>
+                {% endfor %}
+            </select>
+            <small>Após a criação, a prioridade só pode ser reduzida.</small>
+        </div>
 
-    <button type="submit">Salvar</button>
-    <a href="/"><button type="button">Cancelar</button></a>
-</form>
-
+        <div class="form-actions">
+            <button type="submit">Salvar</button>
+            <a class="button button--secondary" href="/">Cancelar</a>
+        </div>
+    </form>
+</section>
 {% endblock %}
