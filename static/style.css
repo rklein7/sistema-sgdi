@@ -166,6 +166,11 @@ a:hover {
     font-weight: 700;
 }
 
+.page-subtitle {
+    margin: 6px 0 0;
+    color: var(--text-secondary);
+}
+
 .section-title {
     margin: 0 0 16px;
     color: var(--text-primary);
@@ -207,6 +212,23 @@ a:hover {
     background: var(--accent-light);
     border-color: var(--accent);
     color: var(--accent);
+}
+
+.inline-filter {
+    display: flex;
+    align-items: flex-end;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin: 0 0 22px;
+    padding: 16px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+}
+
+.inline-filter .field {
+    min-width: 220px;
 }
 
 .demand-grid {
@@ -483,6 +505,78 @@ small,
     background: var(--danger-bg);
     border-left-color: var(--danger-border);
     color: var(--danger-text);
+}
+
+.report-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 16px;
+    margin-bottom: 22px;
+}
+
+.stat-card,
+.report-panel {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+}
+
+.stat-card {
+    display: grid;
+    gap: 6px;
+    padding: 18px;
+}
+
+.stat-card strong {
+    color: var(--text-primary);
+    font-size: 2rem;
+    line-height: 1;
+}
+
+.stat-label {
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    font-weight: 700;
+}
+
+.report-panel {
+    margin-bottom: 22px;
+    padding: 24px;
+}
+
+.report-panel__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.table-wrap {
+    width: 100%;
+    overflow-x: auto;
+}
+
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 680px;
+}
+
+.data-table th,
+.data-table td {
+    padding: 12px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text-primary);
+    text-align: left;
+}
+
+.data-table th {
+    color: var(--text-secondary);
+    font-size: 0.8125rem;
+    font-weight: 700;
+    text-transform: uppercase;
 }
 
 .detail-card,

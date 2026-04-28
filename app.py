@@ -30,6 +30,50 @@ def calcular_dias_parada(data_str):
         return 0
 
 
+def preparar_demandas(demandas):
+    dados = sorted(demandas or [], key=lambda d: (
+        ORDEM_PRIORIDADE.get(d.get('prioridade', 'Média'), 2),
+        d.get('data_criacao', '')
+    ))
+    for demanda in dados:
+        demanda['dias_parada'] = calcular_dias_parada(demanda.get('data_criacao', ''))
+    return dados
+
+
+def listar_solicitantes(demandas):
+    return sorted({
+        demanda.get('solicitante')
+        for demanda in demandas or []
+        if demanda.get('solicitante')
+    }, key=str.lower)
+
+
+def gerar_relatorio_solicitantes(demandas):
+    resumo = {}
+    for demanda in demandas or []:
+        chave = demanda.get('solicitante') or 'Sem solicitante'
+        item = resumo.setdefault(chave, {
+            'solicitante': chave,
+            'total': 0,
+            'alta': 0,
+            'media': 0,
+            'baixa': 0,
+            'paradas': 0,
+        })
+        prioridade = demanda.get('prioridade')
+        item['total'] += 1
+        if prioridade == 'Alta':
+            item['alta'] += 1
+        elif prioridade == 'Média':
+            item['media'] += 1
+        elif prioridade == 'Baixa':
+            item['baixa'] += 1
+        if calcular_dias_parada(demanda.get('data_criacao', '')) >= DIAS_PARADA:
+            item['paradas'] += 1
+
+    return sorted(resumo.values(), key=lambda item: (-item['total'], item['solicitante'].lower()))
+
+
 def login_required(view_func):
     @wraps(view_func)
     def wrapped_view(*args, **kwargs):
@@ -127,22 +171,27 @@ def logout():
 @login_required
 def index():
     filtro = request.args.get('prioridade', 'Todas')
+    solicitante = request.args.get('solicitante', '').strip()
     query = supabase.table('demandas').select('*')
     if filtro in PRIORIDADES_VALIDAS:
         query = query.eq('prioridade', filtro)
+    if solicitante:
+        query = query.eq('solicitante', solicitante)
     res = query.execute()
 
-    # Ordenar: prioridade (Alta > Média > Baixa) e depois FIFO por data_criacao
-    dados = sorted(res.data, key=lambda d: (
-        ORDEM_PRIORIDADE.get(d.get('prioridade', 'Média'), 2),
-        d.get('data_criacao', '')
-    ))
+    todos = supabase.table('demandas').select('solicitante').execute()
+    solicitantes = listar_solicitantes(todos.data)
+    dados = preparar_demandas(res.data)
 
-    # Anotar dias parado em cada demanda
-    for d in dados:
-        d['dias_parada'] = calcular_dias_parada(d.get('data_criacao', ''))
-
-    return render_template('index.html', demandas=dados, filtro=filtro, dias_parada_limite=DIAS_PARADA)
+    return render_template(
+        'index.html',
+        demandas=dados,
+        filtro=filtro,
+        solicitante=solicitante,
+        solicitantes=solicitantes,
+        prioridades=PRIORIDADES_VALIDAS,
+        dias_parada_limite=DIAS_PARADA
+    )
 
 
 @app.route('/nova_demanda', methods=['GET', 'POST'])
@@ -211,15 +260,65 @@ def deletar(id):
 def buscar():
     termo = request.args.get('q', '')
     res = supabase.table('demandas').select('*').ilike('titulo', f'%{termo}%').execute()
+    todos = supabase.table('demandas').select('solicitante').execute()
 
-    dados = sorted(res.data, key=lambda d: (
-        ORDEM_PRIORIDADE.get(d.get('prioridade', 'Média'), 2),
-        d.get('data_criacao', '')
-    ))
-    for d in dados:
-        d['dias_parada'] = calcular_dias_parada(d.get('data_criacao', ''))
+    dados = preparar_demandas(res.data)
 
-    return render_template('index.html', demandas=dados, filtro='Todas', dias_parada_limite=DIAS_PARADA)
+    return render_template(
+        'index.html',
+        demandas=dados,
+        filtro='Todas',
+        solicitante='',
+        solicitantes=listar_solicitantes(todos.data),
+        prioridades=PRIORIDADES_VALIDAS,
+        dias_parada_limite=DIAS_PARADA
+    )
+
+
+@app.route('/relatorios')
+@login_required
+def relatorios():
+    filtro_prioridade = request.args.get('prioridade', 'Todas')
+    filtro_solicitante = request.args.get('solicitante', '').strip()
+
+    todas_res = supabase.table('demandas').select('*').execute()
+    todas_demandas = todas_res.data or []
+    solicitantes = listar_solicitantes(todas_demandas)
+    resumo_solicitantes = gerar_relatorio_solicitantes(todas_demandas)
+
+    demandas_filtradas = todas_demandas
+    if filtro_prioridade in PRIORIDADES_VALIDAS:
+        demandas_filtradas = [
+            demanda for demanda in demandas_filtradas
+            if demanda.get('prioridade') == filtro_prioridade
+        ]
+    if filtro_solicitante:
+        demandas_filtradas = [
+            demanda for demanda in demandas_filtradas
+            if demanda.get('solicitante') == filtro_solicitante
+        ]
+
+    total_demandas = len(todas_demandas)
+    total_solicitantes = len(solicitantes)
+    total_paradas = sum(
+        1
+        for demanda in todas_demandas
+        if calcular_dias_parada(demanda.get('data_criacao', '')) >= DIAS_PARADA
+    )
+
+    return render_template(
+        'relatorios.html',
+        resumo_solicitantes=resumo_solicitantes,
+        demandas=preparar_demandas(demandas_filtradas),
+        solicitantes=solicitantes,
+        prioridades=PRIORIDADES_VALIDAS,
+        filtro_prioridade=filtro_prioridade,
+        filtro_solicitante=filtro_solicitante,
+        total_demandas=total_demandas,
+        total_solicitantes=total_solicitantes,
+        total_paradas=total_paradas,
+        dias_parada_limite=DIAS_PARADA
+    )
 
 
 @app.route('/detalhes/<int:id>')

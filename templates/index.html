@@ -8,11 +8,28 @@
 
 <div class="filter-bar" aria-label="Filtro por prioridade">
     <span class="filter-label">Filtrar por prioridade</span>
-    <a class="filter-link {% if filtro == 'Todas' %}active{% endif %}" href="/?prioridade=Todas">Todas</a>
-    <a class="filter-link {% if filtro == 'Alta' %}active{% endif %}" href="/?prioridade=Alta">Alta</a>
-    <a class="filter-link {% if filtro == 'Média' %}active{% endif %}" href="/?prioridade=Média">Média</a>
-    <a class="filter-link {% if filtro == 'Baixa' %}active{% endif %}" href="/?prioridade=Baixa">Baixa</a>
+    <a class="filter-link {% if filtro == 'Todas' %}active{% endif %}" href="/?prioridade=Todas{% if solicitante %}&solicitante={{ solicitante|urlencode }}{% endif %}">Todas</a>
+    {% for prioridade in prioridades %}
+        <a class="filter-link {% if filtro == prioridade %}active{% endif %}" href="/?prioridade={{ prioridade|urlencode }}{% if solicitante %}&solicitante={{ solicitante|urlencode }}{% endif %}">{{ prioridade }}</a>
+    {% endfor %}
 </div>
+
+<form class="inline-filter" method="GET" action="/">
+    <input type="hidden" name="prioridade" value="{{ filtro }}">
+    <div class="field">
+        <label for="solicitante">Solicitante</label>
+        <select id="solicitante" name="solicitante">
+            <option value="">Todos os solicitantes</option>
+            {% for nome in solicitantes %}
+                <option value="{{ nome }}" {% if nome == solicitante %}selected{% endif %}>{{ nome }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <button type="submit">Filtrar</button>
+    {% if solicitante %}
+        <a class="button button--secondary" href="/?prioridade={{ filtro|urlencode }}">Limpar</a>
+    {% endif %}
+</form>
 
 {% if demandas %}
     <section class="demand-grid" aria-label="Demandas">

@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Relatórios</h1>
+        <p class="page-subtitle">Acompanhe volume de demandas por solicitante e filtre a carteira atual.</p>
+    </div>
+    <a class="button button--secondary" href="/">Voltar</a>
+</div>
+
+<section class="report-stats" aria-label="Resumo geral">
+    <article class="stat-card">
+        <span class="stat-label">Demandas</span>
+        <strong>{{ total_demandas }}</strong>
+    </article>
+    <article class="stat-card">
+        <span class="stat-label">Solicitantes</span>
+        <strong>{{ total_solicitantes }}</strong>
+    </article>
+    <article class="stat-card">
+        <span class="stat-label">Paradas</span>
+        <strong>{{ total_paradas }}</strong>
+    </article>
+</section>
+
+<section class="report-panel">
+    <div class="report-panel__header">
+        <h2 class="section-title">Demandas por Solicitante</h2>
+    </div>
+
+    {% if resumo_solicitantes %}
+        <div class="table-wrap">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Solicitante</th>
+                        <th>Total</th>
+                        <th>Alta</th>
+                        <th>Média</th>
+                        <th>Baixa</th>
+                        <th>Paradas</th>
+                        <th>Ação</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in resumo_solicitantes %}
+                        <tr>
+                            <td>{{ item.solicitante }}</td>
+                            <td>{{ item.total }}</td>
+                            <td>{{ item.alta }}</td>
+                            <td>{{ item.media }}</td>
+                            <td>{{ item.baixa }}</td>
+                            <td>{{ item.paradas }}</td>
+                            <td>
+                                <a class="button button--secondary button--small" href="/relatorios?solicitante={{ item.solicitante|urlencode }}">Ver</a>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <div class="empty-state">Nenhuma demanda cadastrada para gerar relatório.</div>
+    {% endif %}
+</section>
+
+<section class="report-panel">
+    <div class="report-panel__header">
+        <h2 class="section-title">Carteira Filtrada</h2>
+    </div>
+
+    <form class="inline-filter" method="GET" action="/relatorios">
+        <div class="field">
+            <label for="relatorio-solicitante">Solicitante</label>
+            <select id="relatorio-solicitante" name="solicitante">
+                <option value="">Todos os solicitantes</option>
+                {% for nome in solicitantes %}
+                    <option value="{{ nome }}" {% if nome == filtro_solicitante %}selected{% endif %}>{{ nome }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="field">
+            <label for="relatorio-prioridade">Prioridade</label>
+            <select id="relatorio-prioridade" name="prioridade">
+                <option value="Todas" {% if filtro_prioridade == 'Todas' %}selected{% endif %}>Todas</option>
+                {% for prioridade in prioridades %}
+                    <option value="{{ prioridade }}" {% if prioridade == filtro_prioridade %}selected{% endif %}>{{ prioridade }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <button type="submit">Aplicar</button>
+        <a class="button button--secondary" href="/relatorios">Limpar</a>
+    </form>
+
+    {% if demandas %}
+        <section class="demand-grid" aria-label="Demandas filtradas">
+            {% for demanda in demandas %}
+                <article class="demand-card">
+                    <div class="demand-card__top">
+                        <div>
+                            <span class="demand-id">#{{ demanda['id'] }}</span>
+                            <h3 class="demand-title">{{ demanda['titulo'] }}</h3>
+                        </div>
+
+                        {% if demanda['prioridade'] == 'Alta' %}
+                            <span class="badge badge--priority-high">Alta</span>
+                        {% elif demanda['prioridade'] == 'Média' %}
+                            <span class="badge badge--priority-medium">Média</span>
+                        {% else %}
+                            <span class="badge badge--priority-low">Baixa</span>
+                        {% endif %}
+                    </div>
+
+                    <div class="demand-meta">
+                        <span>Solicitante: {{ demanda['solicitante'] }}</span>
+                        <span>Data: {{ demanda['data_criacao'] }}</span>
+                    </div>
+
+                    {% if demanda['dias_parada'] >= dias_parada_limite %}
+                        <span class="badge badge--stalled" title="Sem atualização há {{ demanda['dias_parada'] }} dias">Parada</span>
+                    {% else %}
+                        <span class="badge badge--status-progress">Em andamento</span>
+                    {% endif %}
+
+                    <div class="demand-actions">
+                        <a class="button button--secondary button--small" href="/detalhes/{{ demanda['id'] }}">Ver</a>
+                        <a class="button button--secondary button--small" href="/editar/{{ demanda['id'] }}">Editar</a>
+                    </div>
+                </article>
+            {% endfor %}
+        </section>
+    {% else %}
+        <div class="empty-state">Nenhuma demanda encontrada com os filtros selecionados.</div>
+    {% endif %}
+</section>
+{% endblock %}
