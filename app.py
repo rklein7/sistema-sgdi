@@ -74,6 +74,15 @@ def gerar_relatorio_solicitantes(demandas):
     return sorted(resumo.values(), key=lambda item: (-item['total'], item['solicitante'].lower()))
 
 
+def usuario_pode_gerenciar(demanda):
+    return demanda and demanda.get('usuario_id') == session.get('usuario_id')
+
+
+def buscar_demanda(id):
+    resposta = supabase.table('demandas').select('*').eq('id', id).execute()
+    return resposta.data[0] if resposta.data else None
+
+
 def login_required(view_func):
     @wraps(view_func)
     def wrapped_view(*args, **kwargs):
@@ -219,8 +228,14 @@ def nova_demanda():
 @app.route('/editar/<int:id>', methods=['GET', 'POST'])
 @login_required
 def editar(id):
-    res = supabase.table('demandas').select('*').eq('id', id).single().execute()
-    demanda_atual = res.data
+    demanda_atual = buscar_demanda(id)
+    if not demanda_atual:
+        flash('Demanda não encontrada.')
+        return redirect('/')
+
+    if not usuario_pode_gerenciar(demanda_atual):
+        flash('Você não tem permissão para editar esta demanda.')
+        return redirect('/')
 
     if request.method == 'POST':
         nova_prioridade = request.form.get('prioridade', demanda_atual['prioridade'])
@@ -247,9 +262,18 @@ def editar(id):
     return render_template('editar.html', demanda=demanda_atual, prioridades=PRIORIDADES_VALIDAS)
 
 
-@app.route('/deletar/<int:id>')
+@app.route('/deletar/<int:id>', methods=['POST'])
 @login_required
 def deletar(id):
+    demanda = buscar_demanda(id)
+    if not demanda:
+        flash('Demanda não encontrada.')
+        return redirect('/')
+
+    if not usuario_pode_gerenciar(demanda):
+        flash('Você não tem permissão para deletar esta demanda.')
+        return redirect('/')
+
     supabase.table('demandas').delete().eq('id', id).execute()
     flash('Demanda deletada!')
     return redirect('/')
@@ -326,7 +350,12 @@ def relatorios():
 def detalhes(id):
     demanda = supabase.table('demandas').select('*').eq('id', id).single().execute()
     comentarios = supabase.table('comentarios').select('*').eq('demanda_id', id).order('data').execute()
-    return render_template('detalhes.html', demanda=demanda.data, comentarios=comentarios.data)
+    return render_template(
+        'detalhes.html',
+        demanda=demanda.data,
+        comentarios=comentarios.data,
+        pode_gerenciar=usuario_pode_gerenciar(demanda.data)
+    )
 
 
 @app.route('/adicionar_comentario/<int:demanda_id>', methods=['POST'])

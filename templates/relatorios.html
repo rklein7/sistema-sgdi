@@ -127,7 +127,12 @@
 
                     <div class="demand-actions">
                         <a class="button button--secondary button--small" href="/detalhes/{{ demanda['id'] }}">Ver</a>
-                        <a class="button button--secondary button--small" href="/editar/{{ demanda['id'] }}">Editar</a>
+                        {% if demanda['usuario_id'] == usuario_logado.id %}
+                            <a class="button button--secondary button--small" href="/editar/{{ demanda['id'] }}">Editar</a>
+                            <form method="POST" action="/deletar/{{ demanda['id'] }}" onsubmit="return confirm('Tem certeza que deseja deletar esta demanda? Esta ação não pode ser desfeita.');">
+                                <button class="button button--danger button--small" type="submit">Deletar</button>
+                            </form>
+                        {% endif %}
                     </div>
                 </article>
             {% endfor %}

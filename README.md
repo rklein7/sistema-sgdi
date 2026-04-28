@@ -28,8 +28,10 @@ O **SGDI** é uma aplicação web em Flask para registrar, acompanhar, filtrar e
 - Criação de demandas com título, descrição, solicitante e prioridade.
 - Prioridades disponíveis: `Alta`, `Média` e `Baixa`.
 - Ordenação automática por prioridade e data de criação.
-- Edição de demandas com regra de prioridade: só é permitido manter ou reduzir a prioridade.
-- Exclusão de demandas.
+- Edição de demandas apenas pelo usuário que criou a demanda.
+- Regra de prioridade na edição: só é permitido manter ou reduzir a prioridade.
+- Exclusão de demandas apenas pelo usuário que criou a demanda.
+- Confirmação antes de excluir uma demanda.
 - Visualização detalhada de cada demanda.
 - Comentários por demanda, com autor e data.
 - Busca de demandas por título usando comparação case-insensitive.
@@ -183,7 +185,7 @@ CREATE INDEX idx_comentarios_demanda_id ON comentarios(demanda_id);
 | GET | `/` | Lista demandas, com filtros por prioridade e solicitante | Sim |
 | GET/POST | `/nova_demanda` | Cria demanda | Sim |
 | GET/POST | `/editar/<id>` | Edita demanda | Sim |
-| GET | `/deletar/<id>` | Exclui demanda | Sim |
+| POST | `/deletar/<id>` | Exclui demanda, apenas se o usuário logado for o criador | Sim |
 | GET | `/buscar?q=termo` | Busca demandas por título | Sim |
 | GET | `/detalhes/<id>` | Exibe detalhes e comentários | Sim |
 | POST | `/adicionar_comentario/<id>` | Adiciona comentário | Sim |
@@ -259,4 +261,3 @@ python app.py
 ## Licença
 
 Projeto interno. Defina uma licença antes de publicar este repositório.
-

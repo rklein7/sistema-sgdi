@@ -25,7 +25,12 @@
     </div>
 
     <div class="detail-actions">
-        <a class="button button--secondary" href="/editar/{{ demanda['id'] }}">Editar</a>
+        {% if pode_gerenciar %}
+            <a class="button button--secondary" href="/editar/{{ demanda['id'] }}">Editar</a>
+            <form method="POST" action="/deletar/{{ demanda['id'] }}" onsubmit="return confirm('Tem certeza que deseja deletar esta demanda? Esta ação não pode ser desfeita.');">
+                <button class="button button--danger" type="submit">Deletar</button>
+            </form>
+        {% endif %}
         <a class="button button--secondary" href="/">Voltar</a>
     </div>
 </section>
