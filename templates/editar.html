@@ -1,58 +1,52 @@
 {% extends "base.html" %}
 
 {% block content %}
-<h2>Editar Demanda</h2>
+<section class="form-card">
+    <h1 class="page-title">Editar Demanda</h1>
 
-<form method="POST" action="/editar/{{ demanda['id'] }}">
-    <div>
-        <label>Título:</label><br>
-        <input type="text" name="titulo" value="{{ demanda['titulo'] }}" size="50" required>
-    </div>
-    <br>
+    <form method="POST" action="/editar/{{ demanda['id'] }}">
+        <div class="field">
+            <label for="titulo">Título</label>
+            <input id="titulo" type="text" name="titulo" value="{{ demanda['titulo'] }}" required>
+        </div>
 
-    <div>
-        <label>Descrição:</label><br>
-        <textarea name="descricao" rows="5" cols="50">{{ demanda['descricao'] }}</textarea>
-    </div>
-    <br>
+        <div class="field">
+            <label for="descricao">Descrição</label>
+            <textarea id="descricao" name="descricao" rows="5">{{ demanda['descricao'] }}</textarea>
+        </div>
 
-    <div>
-        <label>Solicitante:</label><br>
-        <input type="text" name="solicitante" value="{{ demanda['solicitante'] }}" required>
-    </div>
-    <br>
+        <div class="field">
+            <label for="solicitante">Solicitante</label>
+            <input id="solicitante" type="text" name="solicitante" value="{{ demanda['solicitante'] }}" required>
+        </div>
 
-    <div>
-        <label>Data de criação:</label><br>
-        <input type="text" value="{{ demanda['data_criacao'] }}" disabled style="color: #888;">
-    </div>
-    <br>
+        <div class="field">
+            <label for="data_criacao">Data de criação</label>
+            <input id="data_criacao" type="text" value="{{ demanda['data_criacao'] }}" disabled>
+        </div>
 
-    <div>
-        <label>Prioridade:</label><br>
-        <select name="prioridade">
-            {% for p in prioridades %}
-                {# Desabilitar opções de prioridade maior que a atual #}
-                {% if loop.index < loop.revindex %}
-                {% endif %}
-                <option value="{{ p }}"
-                    {% if p == demanda['prioridade'] %}selected{% endif %}
-                    {% if p == 'Alta' and demanda['prioridade'] != 'Alta' %}disabled style="color:#ccc;"{% endif %}
-                    {% if p == 'Média' and demanda['prioridade'] == 'Baixa' %}disabled style="color:#ccc;"{% endif %}
-                >
-                    {% if p == 'Alta' %}🔴{% elif p == 'Média' %}🟡{% else %}🟢{% endif %}
-                    {{ p }}
-                    {% if p == 'Alta' and demanda['prioridade'] != 'Alta' %}(não permitido){% endif %}
-                    {% if p == 'Média' and demanda['prioridade'] == 'Baixa' %}(não permitido){% endif %}
-                </option>
-            {% endfor %}
-        </select>
-        <small style="color: #888; margin-left: 8px;">A prioridade só pode ser reduzida.</small>
-    </div>
-    <br>
+        <div class="field">
+            <label for="prioridade">Prioridade</label>
+            <select id="prioridade" name="prioridade">
+                {% for p in prioridades %}
+                    <option value="{{ p }}"
+                        {% if p == demanda['prioridade'] %}selected{% endif %}
+                        {% if p == 'Alta' and demanda['prioridade'] != 'Alta' %}disabled{% endif %}
+                        {% if p == 'Média' and demanda['prioridade'] == 'Baixa' %}disabled{% endif %}
+                    >
+                        {{ p }}
+                        {% if p == 'Alta' and demanda['prioridade'] != 'Alta' %}(não permitido){% endif %}
+                        {% if p == 'Média' and demanda['prioridade'] == 'Baixa' %}(não permitido){% endif %}
+                    </option>
+                {% endfor %}
+            </select>
+            <small>A prioridade só pode ser reduzida.</small>
+        </div>
 
-    <button type="submit">Atualizar</button>
-    <a href="/"><button type="button">Cancelar</button></a>
-</form>
-
+        <div class="form-actions">
+            <button type="submit">Atualizar</button>
+            <a class="button button--secondary" href="/">Cancelar</a>
+        </div>
+    </form>
+</section>
 {% endblock %}

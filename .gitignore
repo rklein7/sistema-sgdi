@@ -6,3 +6,7 @@ env/
 .env
 .env.*
 
+.codex
+
+__pycache__/
+*.pyc

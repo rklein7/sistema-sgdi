@@ -1,48 +1,57 @@
 <!DOCTYPE html>
-<html>
+<html lang="pt-BR" data-theme="light">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SGDI - Sistema de Gestão de Demandas</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <style>
-        body { margin: 0; }
-    </style>
+    <script src="{{ url_for('static', filename='theme.js') }}" defer></script>
 </head>
 <body>
-    <div class="header">
-        <h1>SGDI</h1>
-        <div class="menu">
+    <header class="navbar">
+        <a class="brand" href="/">SGDI</a>
+
+        <nav class="nav-actions" aria-label="Navegação principal">
             {% if usuario_logado.id %}
-                <a href="/">Início</a>
-                <a href="/nova_demanda">Nova Demanda</a>
-                <form action="/buscar" method="GET" style="display:inline;">
-                    <input type="text" name="q" placeholder="Buscar">
-                    <button type="submit">Buscar</button>
+                <a class="nav-link" href="/">Início</a>
+                <a class="nav-link" href="/nova_demanda">Nova Demanda</a>
+                <a class="nav-link" href="/relatorios">Relatórios</a>
+                <form class="search-form" action="/buscar" method="GET">
+                    <input type="text" name="q" placeholder="Buscar demandas">
+                    <button class="button button--small" type="submit">Buscar</button>
                 </form>
-                <span style="margin-left: 12px;">
-                    {{ usuario_logado.nome }}{% if usuario_logado.cargo %} ({{ usuario_logado.cargo }}){% endif %}
+                <span class="user-chip">
+                    <strong>{{ usuario_logado.nome }}</strong>{% if usuario_logado.cargo %} · {{ usuario_logado.cargo }}{% endif %}
                 </span>
-                <a href="/logout" style="margin-left: 12px;">Sair</a>
+                <a class="nav-link logout-link" href="/logout">Sair</a>
             {% else %}
-                <a href="/login">Login</a>
-                <a href="/cadastro">Cadastro</a>
+                <a class="nav-link" href="/login">Login</a>
+                <a class="nav-link" href="/cadastro">Cadastro</a>
             {% endif %}
-        </div>
-    </div>
+            <button id="theme-toggle" onclick="toggleTheme()" title="Alternar tema" type="button">
+                <span id="theme-icon">🌙</span>
+            </button>
+        </nav>
+    </header>
 
     {% with messages = get_flashed_messages() %}
         {% if messages %}
-            {% for message in messages %}
-                <div class="alert">{{ message }}</div>
-            {% endfor %}
+            <div class="alert-wrap">
+                {% for message in messages %}
+                    <div class="alert {% if 'erro' in message|lower or 'inválid' in message|lower or 'incorret' in message|lower or 'não' in message|lower or 'senha' in message|lower %}alert--error{% endif %}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            </div>
         {% endif %}
     {% endwith %}
 
-    <div class="container">
+    <main class="container">
         {% block content %}{% endblock %}
-    </div>
+    </main>
 
-    <div class="footer">
-        <p>SGDI v1.0 - 2024</p>
-    </div>
+    <footer class="footer">
+        <p>SGDI - Real Envido - 2025</p>
+    </footer>
 </body>
 </html>
