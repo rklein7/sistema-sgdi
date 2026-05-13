@@ -328,9 +328,29 @@ a:hover {
     color: var(--accent);
 }
 
+.badge--status-aberta {
+    background: #dbeafe;
+    color: #1d4ed8;
+}
+
 .badge--status-progress {
     background: var(--warning-bg);
     color: var(--warning-text);
+}
+
+.badge--status-em-andamento {
+    background: #fef3c7;
+    color: #a16207;
+}
+
+.badge--status-parada {
+    background: #fee2e2;
+    color: #b91c1c;
+}
+
+.badge--status-finalizada {
+    background: #dcfce7;
+    color: #15803d;
 }
 
 .badge--status-done,
@@ -348,6 +368,39 @@ a:hover {
 .badge--priority-medium {
     background: var(--warning-soft-bg);
     color: var(--warning-strong-text);
+}
+
+.status-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.status-row .status-select {
+    max-width: 180px;
+    min-width: 140px;
+    margin-left: auto;
+}
+
+.status-row--detail {
+    margin: 0 0 18px;
+}
+
+.status-row--detail label {
+    font-weight: 600;
+}
+
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
 }
 
 .button,

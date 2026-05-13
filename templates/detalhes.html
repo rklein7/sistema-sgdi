@@ -22,6 +22,11 @@
     <div class="detail-list">
         <div class="detail-row"><strong>Solicitante:</strong> {{ demanda['solicitante'] }}</div>
         <div class="detail-row"><strong>Data de Criação:</strong> {{ demanda['data_criacao'] }}</div>
+        {% set status = demanda.get('status') or 'Aberta' %}
+        <div class="detail-row">
+            <strong>Status:</strong>
+            <span class="badge status-badge badge--status-{{ status|lower|replace(' ', '-') }}">{{ status }}</span>
+        </div>
     </div>
 
     <div class="detail-actions">

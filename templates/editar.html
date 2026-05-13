@@ -5,19 +5,23 @@
     <h1 class="page-title">Editar Demanda</h1>
 
     <form method="POST" action="/editar/{{ demanda['id'] }}">
+        {% if not pode_gerenciar %}
+            <p class="muted">Você pode alterar apenas o status desta demanda.</p>
+        {% endif %}
+
         <div class="field">
             <label for="titulo">Título</label>
-            <input id="titulo" type="text" name="titulo" value="{{ demanda['titulo'] }}" required>
+            <input id="titulo" type="text" name="titulo" value="{{ demanda['titulo'] }}" required {% if not pode_gerenciar %}readonly{% endif %}>
         </div>
 
         <div class="field">
             <label for="descricao">Descrição</label>
-            <textarea id="descricao" name="descricao" rows="5">{{ demanda['descricao'] }}</textarea>
+            <textarea id="descricao" name="descricao" rows="5" {% if not pode_gerenciar %}readonly{% endif %}>{{ demanda['descricao'] }}</textarea>
         </div>
 
         <div class="field">
             <label for="solicitante">Solicitante</label>
-            <input id="solicitante" type="text" name="solicitante" value="{{ demanda['solicitante'] }}" required>
+            <input id="solicitante" type="text" name="solicitante" value="{{ demanda['solicitante'] }}" required {% if not pode_gerenciar %}readonly{% endif %}>
         </div>
 
         <div class="field">
@@ -27,20 +31,31 @@
 
         <div class="field">
             <label for="prioridade">Prioridade</label>
-            <select id="prioridade" name="prioridade">
+            <select id="prioridade" name="prioridade" {% if not pode_gerenciar %}disabled{% endif %}>
                 {% for p in prioridades %}
                     <option value="{{ p }}"
                         {% if p == demanda['prioridade'] %}selected{% endif %}
-                        {% if p == 'Alta' and demanda['prioridade'] != 'Alta' %}disabled{% endif %}
-                        {% if p == 'Média' and demanda['prioridade'] == 'Baixa' %}disabled{% endif %}
+                        {% if pode_gerenciar and p == 'Alta' and demanda['prioridade'] != 'Alta' %}disabled{% endif %}
+                        {% if pode_gerenciar and p == 'Média' and demanda['prioridade'] == 'Baixa' %}disabled{% endif %}
                     >
                         {{ p }}
-                        {% if p == 'Alta' and demanda['prioridade'] != 'Alta' %}(não permitido){% endif %}
-                        {% if p == 'Média' and demanda['prioridade'] == 'Baixa' %}(não permitido){% endif %}
+                        {% if pode_gerenciar and p == 'Alta' and demanda['prioridade'] != 'Alta' %}(não permitido){% endif %}
+                        {% if pode_gerenciar and p == 'Média' and demanda['prioridade'] == 'Baixa' %}(não permitido){% endif %}
                     </option>
                 {% endfor %}
             </select>
-            <small>A prioridade só pode ser reduzida.</small>
+            {% if pode_gerenciar %}
+                <small>A prioridade só pode ser reduzida.</small>
+            {% endif %}
+        </div>
+
+        <div class="field">
+            <label for="status">Status</label>
+            <select id="status" name="status" required>
+                {% for status_item in status_validos %}
+                    <option value="{{ status_item }}" {% if status_item == (demanda.get('status') or 'Aberta') %}selected{% endif %}>{{ status_item }}</option>
+                {% endfor %}
+            </select>
         </div>
 
         <div class="form-actions">

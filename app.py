@@ -31,6 +31,7 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 PRIORIDADES_VALIDAS = ['Alta', 'Média', 'Baixa']
 ORDEM_PRIORIDADE = {'Alta': 1, 'Média': 2, 'Baixa': 3}
+STATUS_DEMANDA_VALIDOS = ['Aberta', 'Em andamento', 'Parada', 'Finalizada']
 DIAS_PARADA = 3  # configurável
 
 
@@ -259,6 +260,7 @@ def nova_demanda():
             'descricao':   request.form['descricao'],
             'solicitante': session['usuario_nome'],
             'prioridade':  prioridade,
+            'status':      'Aberta',
             'usuario_id':  session['usuario_id'],
         }
         supabase.table('demandas').insert(dados).execute()
@@ -275,32 +277,49 @@ def editar(id):
         flash('Demanda não encontrada.')
         return redirect('/')
 
-    if not usuario_pode_gerenciar(demanda_atual):
-        flash('Você não tem permissão para editar esta demanda.')
-        return redirect('/')
+    pode_gerenciar = usuario_pode_gerenciar(demanda_atual)
 
     if request.method == 'POST':
-        nova_prioridade = request.form.get('prioridade', demanda_atual['prioridade'])
+        novo_status = request.form.get('status', demanda_atual.get('status') or 'Aberta').strip()
 
-        if ORDEM_PRIORIDADE.get(nova_prioridade, 2) < ORDEM_PRIORIDADE.get(demanda_atual['prioridade'], 2):
-            flash('Não é permitido aumentar a prioridade.')
-            return redirect(f'/editar/{id}')
-
-        if nova_prioridade not in PRIORIDADES_VALIDAS:
-            flash('Prioridade inválida.')
+        if novo_status not in STATUS_DEMANDA_VALIDOS:
+            flash('Status inválido.')
             return redirect(f'/editar/{id}')
 
         dados = {
-            'titulo':      request.form['titulo'],
-            'descricao':   request.form['descricao'],
-            'solicitante': request.form['solicitante'],
-            'prioridade':  nova_prioridade,
+            'status':      novo_status,
+            'updated_at':  datetime.now(timezone.utc).isoformat(),
         }
+
+        if pode_gerenciar:
+            nova_prioridade = request.form.get('prioridade', demanda_atual['prioridade'])
+
+            if ORDEM_PRIORIDADE.get(nova_prioridade, 2) < ORDEM_PRIORIDADE.get(demanda_atual['prioridade'], 2):
+                flash('Não é permitido aumentar a prioridade.')
+                return redirect(f'/editar/{id}')
+
+            if nova_prioridade not in PRIORIDADES_VALIDAS:
+                flash('Prioridade inválida.')
+                return redirect(f'/editar/{id}')
+
+            dados.update({
+                'titulo':      request.form['titulo'],
+                'descricao':   request.form['descricao'],
+                'solicitante': request.form['solicitante'],
+                'prioridade':  nova_prioridade,
+            })
+
         supabase.table('demandas').update(dados).eq('id', id).execute()
         flash('Demanda atualizada!')
         return redirect('/')
 
-    return render_template('editar.html', demanda=demanda_atual, prioridades=PRIORIDADES_VALIDAS)
+    return render_template(
+        'editar.html',
+        demanda=demanda_atual,
+        pode_gerenciar=pode_gerenciar,
+        prioridades=PRIORIDADES_VALIDAS,
+        status_validos=STATUS_DEMANDA_VALIDOS,
+    )
 
 
 @app.route('/deletar/<int:id>', methods=['POST'])
@@ -311,8 +330,8 @@ def deletar(id):
         flash('Demanda não encontrada.')
         return redirect('/')
 
-    if not usuario_pode_gerenciar(demanda):
-        flash('Você não tem permissão para deletar esta demanda.')
+    if demanda.get('solicitante') != session.get('usuario_nome'):
+        flash('Você não pode excluir demanda de outro solicitante.')
         return redirect('/')
 
     supabase.table('demandas').delete().eq('id', id).execute()
@@ -1094,7 +1113,7 @@ def detalhes(id):
         'detalhes.html',
         demanda=demanda.data,
         comentarios=comentarios.data,
-        pode_gerenciar=usuario_pode_gerenciar(demanda.data)
+        pode_gerenciar=usuario_pode_gerenciar(demanda.data),
     )
 
 

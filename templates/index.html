@@ -55,11 +55,10 @@
                     <span>Data: {{ demanda['data_criacao'] }}</span>
                 </div>
 
-                {% if demanda['dias_parada'] >= dias_parada_limite %}
-                    <span class="badge badge--stalled" title="Sem atualização há {{ demanda['dias_parada'] }} dias">Parada</span>
-                {% else %}
-                    <span class="badge badge--status-progress">Em andamento</span>
-                {% endif %}
+                {% set status = demanda.get('status') or 'Aberta' %}
+                <div class="status-row">
+                    <span class="badge status-badge badge--status-{{ status|lower|replace(' ', '-') }}">{{ status }}</span>
+                </div>
 
                 <div class="demand-actions">
                     <a class="button button--secondary button--small" href="/detalhes/{{ demanda['id'] }}">Ver</a>
