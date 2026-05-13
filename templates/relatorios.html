@@ -1,17 +1,32 @@
 {% extends "base.html" %}
 
 {% block content %}
+
 <div class="page-header">
     <div>
         <h1 class="page-title">Relatórios</h1>
-        <p class="page-subtitle">Acompanhe volume de demandas por solicitante e filtre a carteira atual.</p>
+        <p class="page-subtitle">Visão geral, gráficos e carteira filtrada.</p>
     </div>
-    <a class="button button--secondary" href="/">Voltar</a>
+    
+    {# ── NOVO BOTÃO DE EXPORTAÇÃO DROPDOWN ── #}
+    <div class="header-actions">
+        <div class="dropdown">
+            <button class="dropdown-btn">
+                Exportar Dados <span class="caret">▼</span>
+            </button>
+            <div class="dropdown-content">
+                <a href="/relatorios/exportar/excel?prioridade={{ filtro_prioridade }}&solicitante={{ filtro_solicitante|urlencode }}">📥 Excel</a>
+                <a href="/relatorios/exportar/pdf?prioridade={{ filtro_prioridade }}&solicitante={{ filtro_solicitante|urlencode }}">📄 PDF</a>
+                <a href="/relatorios/exportar/csv?prioridade={{ filtro_prioridade }}&solicitante={{ filtro_solicitante|urlencode }}">📝 CSV</a>
+            </div>
+        </div>
+    </div>
 </div>
 
+{# ── KPI cards ─────────────────────────────────────────────────────────── #}
 <section class="report-stats" aria-label="Resumo geral">
     <article class="stat-card">
-        <span class="stat-label">Demandas</span>
+        <span class="stat-label">Total de Demandas</span>
         <strong>{{ total_demandas }}</strong>
     </article>
     <article class="stat-card">
@@ -19,55 +34,118 @@
         <strong>{{ total_solicitantes }}</strong>
     </article>
     <article class="stat-card">
-        <span class="stat-label">Paradas</span>
+        <span class="stat-label">Paradas (≥ {{ dias_parada_limite }} dias)</span>
         <strong>{{ total_paradas }}</strong>
+    </article>
+    <article class="stat-card stat-card--alert">
+        <span class="stat-label">⚠ Críticas (Alta + Paradas)</span>
+        <strong>{{ total_criticas }}</strong>
     </article>
 </section>
 
+{# ── Painéis visuais ───────────────────────────────────────────────────── #}
+<section class="report-panel">
+    <div class="report-panel__header">
+        <h2 class="section-title">Painéis Visuais</h2>
+    </div>
+
+    <div class="charts-grid">
+
+        {# 1 — Donut: prioridades #}
+        <div class="chart-card">
+            <h3 class="chart-title">Distribuição por Prioridade</h3>
+            <div class="chart-wrap chart-wrap--sm">
+                <canvas id="chartPrioridade"></canvas>
+            </div>
+        </div>
+
+        {# 2 — Donut: críticas vs demais #}
+        <div class="chart-card">
+            <h3 class="chart-title">Críticas vs. Demais</h3>
+            <div class="chart-wrap chart-wrap--sm">
+                <canvas id="chartCriticas"></canvas>
+            </div>
+        </div>
+
+        {# 3 — Barras horizontais: volume por solicitante #}
+        <div class="chart-card chart-card--wide">
+            <h3 class="chart-title">Volume por Solicitante (top 10)</h3>
+            <div class="chart-wrap">
+                <canvas id="chartSolicitante"></canvas>
+            </div>
+        </div>
+
+        {# 4 — Barras empilhadas: prioridades por solicitante #}
+        <div class="chart-card chart-card--wide">
+            <h3 class="chart-title">Prioridades por Solicitante (top 10)</h3>
+            <div class="chart-wrap">
+                <canvas id="chartStack"></canvas>
+            </div>
+        </div>
+
+        {# 5 — Linha: demandas ao longo do tempo #}
+        <div class="chart-card chart-card--full">
+            <h3 class="chart-title">Demandas Criadas ao Longo do Tempo</h3>
+            <div class="chart-wrap chart-wrap--lg">
+                <canvas id="chartTimeline"></canvas>
+            </div>
+        </div>
+
+    </div>
+</section>
+
+{# ── Tabela: resumo por solicitante ───────────────────────────────────── #}
 <section class="report-panel">
     <div class="report-panel__header">
         <h2 class="section-title">Demandas por Solicitante</h2>
     </div>
 
     {% if resumo_solicitantes %}
-        <div class="table-wrap">
-            <table class="data-table">
-                <thead>
-                    <tr>
-                        <th>Solicitante</th>
-                        <th>Total</th>
-                        <th>Alta</th>
-                        <th>Média</th>
-                        <th>Baixa</th>
-                        <th>Paradas</th>
-                        <th>Ação</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for item in resumo_solicitantes %}
-                        <tr>
-                            <td>{{ item.solicitante }}</td>
-                            <td>{{ item.total }}</td>
-                            <td>{{ item.alta }}</td>
-                            <td>{{ item.media }}</td>
-                            <td>{{ item.baixa }}</td>
-                            <td>{{ item.paradas }}</td>
-                            <td>
-                                <a class="button button--secondary button--small" href="/relatorios?solicitante={{ item.solicitante|urlencode }}">Ver</a>
-                            </td>
-                        </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
+    <div class="table-wrap">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Solicitante</th>
+                    <th>Total</th>
+                    <th>Alta</th>
+                    <th>Média</th>
+                    <th>Baixa</th>
+                    <th>Paradas</th>
+                    <th>Ação</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in resumo_solicitantes %}
+                <tr>
+                    <td>{{ item.solicitante }}</td>
+                    <td>{{ item.total }}</td>
+                    <td>{{ item.alta }}</td>
+                    <td>{{ item.media }}</td>
+                    <td>{{ item.baixa }}</td>
+                    <td>{{ item.paradas }}</td>
+                    <td>
+                        <a class="button button--secondary button--small"
+                           href="/relatorios?solicitante={{ item.solicitante|urlencode }}">Ver</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
     {% else %}
-        <div class="empty-state">Nenhuma demanda cadastrada para gerar relatório.</div>
+    <div class="empty-state">Nenhuma demanda cadastrada para gerar relatório.</div>
     {% endif %}
 </section>
 
+{# ── Carteira filtrada ─────────────────────────────────────────────────── #}
 <section class="report-panel">
     <div class="report-panel__header">
         <h2 class="section-title">Carteira Filtrada</h2>
+        {% if total_criticas > 0 %}
+        <a class="button button--danger button--small" href="/relatorios/exportar/criticas">
+            ⚠ Exportar Críticas ({{ total_criticas }})
+        </a>
+        {% endif %}
     </div>
 
     <form class="inline-filter" method="GET" action="/relatorios">
@@ -76,69 +154,460 @@
             <select id="relatorio-solicitante" name="solicitante">
                 <option value="">Todos os solicitantes</option>
                 {% for nome in solicitantes %}
-                    <option value="{{ nome }}" {% if nome == filtro_solicitante %}selected{% endif %}>{{ nome }}</option>
+                <option value="{{ nome }}" {% if nome == filtro_solicitante %}selected{% endif %}>{{ nome }}</option>
                 {% endfor %}
             </select>
         </div>
-
         <div class="field">
             <label for="relatorio-prioridade">Prioridade</label>
             <select id="relatorio-prioridade" name="prioridade">
                 <option value="Todas" {% if filtro_prioridade == 'Todas' %}selected{% endif %}>Todas</option>
                 {% for prioridade in prioridades %}
-                    <option value="{{ prioridade }}" {% if prioridade == filtro_prioridade %}selected{% endif %}>{{ prioridade }}</option>
+                <option value="{{ prioridade }}" {% if prioridade == filtro_prioridade %}selected{% endif %}>{{ prioridade }}</option>
                 {% endfor %}
             </select>
         </div>
-
         <button type="submit">Aplicar</button>
         <a class="button button--secondary" href="/relatorios">Limpar</a>
     </form>
 
     {% if demandas %}
-        <section class="demand-grid" aria-label="Demandas filtradas">
-            {% for demanda in demandas %}
-                <article class="demand-card">
-                    <div class="demand-card__top">
-                        <div>
-                            <span class="demand-id">#{{ demanda['id'] }}</span>
-                            <h3 class="demand-title">{{ demanda['titulo'] }}</h3>
-                        </div>
-
-                        {% if demanda['prioridade'] == 'Alta' %}
-                            <span class="badge badge--priority-high">Alta</span>
-                        {% elif demanda['prioridade'] == 'Média' %}
-                            <span class="badge badge--priority-medium">Média</span>
-                        {% else %}
-                            <span class="badge badge--priority-low">Baixa</span>
-                        {% endif %}
-                    </div>
-
-                    <div class="demand-meta">
-                        <span>Solicitante: {{ demanda['solicitante'] }}</span>
-                        <span>Data: {{ demanda['data_criacao'] }}</span>
-                    </div>
-
-                    {% if demanda['dias_parada'] >= dias_parada_limite %}
-                        <span class="badge badge--stalled" title="Sem atualização há {{ demanda['dias_parada'] }} dias">Parada</span>
-                    {% else %}
-                        <span class="badge badge--status-progress">Em andamento</span>
-                    {% endif %}
-
-                    <div class="demand-actions">
-                        <a class="button button--secondary button--small" href="/detalhes/{{ demanda['id'] }}">Ver</a>
-                        {% if demanda['usuario_id'] == usuario_logado.id %}
-                            <a class="button button--secondary button--small" href="/editar/{{ demanda['id'] }}">Editar</a>
-                            <form method="POST" action="/deletar/{{ demanda['id'] }}" onsubmit="return confirm('Tem certeza que deseja deletar esta demanda? Esta ação não pode ser desfeita.');">
-                                <button class="button button--danger button--small" type="submit">Deletar</button>
-                            </form>
-                        {% endif %}
-                    </div>
-                </article>
-            {% endfor %}
-        </section>
+    <section class="demand-grid" aria-label="Demandas filtradas">
+        {% for demanda in demandas %}
+        <article class="demand-card{% if demanda['prioridade'] == 'Alta' and demanda['dias_parada'] >= dias_parada_limite %} demand-card--critica{% endif %}">
+            <div class="demand-card__top">
+                <div>
+                    <span class="demand-id">#{{ demanda['id'] }}</span>
+                    <h3 class="demand-title">{{ demanda['titulo'] }}</h3>
+                </div>
+                {% if demanda['prioridade'] == 'Alta' %}
+                    <span class="badge badge--priority-high">Alta</span>
+                {% elif demanda['prioridade'] == 'Média' %}
+                    <span class="badge badge--priority-medium">Média</span>
+                {% else %}
+                    <span class="badge badge--priority-low">Baixa</span>
+                {% endif %}
+            </div>
+            <div class="demand-meta">
+                <span>Solicitante: {{ demanda['solicitante'] }}</span>
+                <span>Data: {{ demanda['data_criacao'] }}</span>
+            </div>
+            {% if demanda['dias_parada'] >= dias_parada_limite %}
+                <span class="badge badge--stalled">Parada há {{ demanda['dias_parada'] }} dias</span>
+            {% else %}
+                <span class="badge badge--status-progress">Em andamento</span>
+            {% endif %}
+            <div class="demand-actions">
+                <a class="button button--secondary button--small" href="/detalhes/{{ demanda['id'] }}">Ver</a>
+                {% if demanda['usuario_id'] == usuario_logado.id %}
+                    <a class="button button--secondary button--small" href="/editar/{{ demanda['id'] }}">Editar</a>
+                    <form method="POST" action="/deletar/{{ demanda['id'] }}"
+                          onsubmit="return confirm('Tem certeza que deseja deletar esta demanda? Esta ação não pode ser desfeita.');">
+                        <button class="button button--danger button--small" type="submit">Deletar</button>
+                    </form>
+                {% endif %}
+            </div>
+        </article>
+        {% endfor %}
+    </section>
     {% else %}
-        <div class="empty-state">Nenhuma demanda encontrada com os filtros selecionados.</div>
+    <div class="empty-state">Nenhuma demanda encontrada com os filtros selecionados.</div>
     {% endif %}
 </section>
+
+{# ── Estilos ───────────────────────────────────────────────────────────── #}
+<style>
+/* CSS NOVO: Menu Dropdown de Exportação */
+.header-actions {
+    display: flex;
+    align-items: center;
+}
+
+.dropdown {
+    position: relative;
+    display: inline-block;
+}
+
+.dropdown-btn {
+    background-color: var(--color-primary, #3b82f6);
+    color: white;
+    padding: 0.6rem 1.25rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    border: none;
+    border-radius: 0.375rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: background-color 0.2s ease;
+}
+
+.dropdown-btn:hover {
+    background-color: #2563eb;
+}
+
+.dropdown-btn .caret {
+    font-size: 0.75rem;
+}
+
+.dropdown-content {
+    display: none;
+    position: absolute;
+    right: 0;
+    top: 100%;
+    margin-top: 0.3rem;
+    background-color: #ffffff;
+    min-width: 160px;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    border: 1px solid var(--color-border, #e5e7eb);
+    border-radius: 0.5rem;
+    z-index: 100;
+    overflow: hidden;
+}
+
+.dropdown-content a {
+    color: var(--color-text-secondary, #374151);
+    padding: 0.75rem 1.25rem;
+    text-decoration: none;
+    display: block;
+    font-size: 0.875rem;
+    border-bottom: 1px solid #f3f4f6;
+    transition: all 0.2s;
+}
+
+.dropdown-content a:last-child {
+    border-bottom: none;
+}
+
+.dropdown-content a:hover {
+    background-color: #f9fafb;
+    color: #111827;
+    padding-left: 1.5rem; /* Efeito de deslize sutil no texto ao passar o mouse */
+}
+
+/* Mostra o menu quando passa o mouse no container */
+.dropdown:hover .dropdown-content {
+    display: block;
+}
+
+/* Restante do CSS original */
+.charts-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.25rem;
+    padding: 0.5rem 0 1rem;
+}
+.chart-card {
+    background: var(--color-surface, #fff);
+    border: 1px solid var(--color-border, #e5e7eb);
+    border-radius: 0.75rem;
+    padding: 1.25rem 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+.chart-card--wide { grid-column: span 2; }
+.chart-card--full { grid-column: 1 / -1; }
+
+.chart-title {
+    margin: 0;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--color-text-secondary, #374151);
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--color-border, #e5e7eb);
+}
+.chart-wrap         { position: relative; width: 100%; height: 280px; }
+.chart-wrap--sm     { height: 220px; }
+.chart-wrap--lg     { height: 240px; }
+
+.stat-card--alert strong { color: #dc2626; }
+
+.demand-card--critica {
+    border-left: 3px solid #dc2626 !important;
+    background: #fff8f8;
+}
+
+@media (max-width: 768px) {
+    .charts-grid { grid-template-columns: 1fr; }
+    .chart-card--wide,
+    .chart-card--full { grid-column: span 1; }
+    .chart-wrap, .chart-wrap--lg { height: 220px; }
+}
+</style>
+
+{# ── Scripts ───────────────────────────────────────────────────────────── #}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+// Dados do servidor
+const _totalDemandas = {{ total_demandas | tojson }};
+const _totalCriticas = {{ total_criticas | tojson }};
+const _resumo        = {{ resumo_solicitantes | tojson }};
+const _demandas      = {{ demandas | tojson }};
+
+// Cores
+const C = {
+    alta:   '#ef4444',
+    media:  '#f59e0b',
+    baixa:  '#22c55e',
+    azul:   '#3b82f6',
+    cinza:  '#d1d5db',
+    grade:  '#f3f4f6',
+    texto:  '#6b7280',
+};
+
+Chart.defaults.font  = { family: 'inherit', size: 12 };
+Chart.defaults.color = C.texto;
+
+// ── Plugin: mensagem quando sem dados ─────────────────────────────────────
+const semDados = {
+    id: 'semDados',
+    afterDraw(chart) {
+        const vazio = chart.data.datasets.every(ds => ds.data.every(v => !v));
+        if (!vazio) return;
+        const { ctx, width, height } = chart;
+        ctx.save();
+        ctx.textAlign    = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle    = C.texto;
+        ctx.font         = '13px inherit';
+        ctx.fillText('Sem dados disponíveis', width / 2, height / 2);
+        ctx.restore();
+    }
+};
+
+// ── 1. Donut — Distribuição por Prioridade ────────────────────────────────
+(function () {
+    const alta  = _resumo.reduce((s, r) => s + r.alta,  0);
+    const media = _resumo.reduce((s, r) => s + r.media, 0);
+    const baixa = _resumo.reduce((s, r) => s + r.baixa, 0);
+
+    new Chart(document.getElementById('chartPrioridade'), {
+        type: 'doughnut',
+        data: {
+            labels: ['Alta', 'Média', 'Baixa'],
+            datasets: [{
+                data: [alta, media, baixa],
+                backgroundColor: [C.alta, C.media, C.baixa],
+                borderWidth: 2,
+                borderColor: '#fff',
+                hoverOffset: 6,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '62%',
+            plugins: {
+                legend: { position: 'bottom', labels: { padding: 14, boxWidth: 12 } },
+                tooltip: {
+                    callbacks: {
+                        label(ctx) {
+                            const tot = ctx.dataset.data.reduce((a, b) => a + b, 0);
+                            const pct = tot ? Math.round(ctx.parsed / tot * 100) : 0;
+                            return ` ${ctx.label}: ${ctx.parsed} (${pct}%)`;
+                        }
+                    }
+                }
+            }
+        },
+        plugins: [semDados]
+    });
+}());
+
+// ── 2. Donut — Críticas vs. Demais ────────────────────────────────────────
+(function () {
+    const demais = Math.max(0, _totalDemandas - _totalCriticas);
+
+    new Chart(document.getElementById('chartCriticas'), {
+        type: 'doughnut',
+        data: {
+            labels: ['Críticas ⚠', 'Demais'],
+            datasets: [{
+                data: [_totalCriticas, demais],
+                backgroundColor: [C.alta, C.cinza],
+                borderWidth: 2,
+                borderColor: '#fff',
+                hoverOffset: 6,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '62%',
+            plugins: {
+                legend: { position: 'bottom', labels: { padding: 14, boxWidth: 12 } },
+                tooltip: {
+                    callbacks: {
+                        label(ctx) {
+                            const tot = ctx.dataset.data.reduce((a, b) => a + b, 0);
+                            const pct = tot ? Math.round(ctx.parsed / tot * 100) : 0;
+                            return ` ${ctx.label}: ${ctx.parsed} (${pct}%)`;
+                        }
+                    }
+                }
+            }
+        },
+        plugins: [semDados]
+    });
+}());
+
+// ── 3. Barras horizontais — Volume por solicitante ────────────────────────
+(function () {
+    if (!_resumo.length) return;
+    const sorted  = [..._resumo].sort((a, b) => b.total - a.total).slice(0, 10);
+    const labels  = sorted.map(r => r.solicitante);
+
+    new Chart(document.getElementById('chartSolicitante'), {
+        type: 'bar',
+        data: {
+            labels,
+            datasets: [
+                {
+                    label: 'Total',
+                    data: sorted.map(r => r.total),
+                    backgroundColor: C.azul + 'bb',
+                    borderColor: C.azul,
+                    borderWidth: 1,
+                    borderRadius: 4,
+                },
+                {
+                    label: 'Paradas',
+                    data: sorted.map(r => r.paradas),
+                    backgroundColor: C.alta + 'bb',
+                    borderColor: C.alta,
+                    borderWidth: 1,
+                    borderRadius: 4,
+                }
+            ]
+        },
+        options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'bottom', labels: { padding: 14, boxWidth: 12 } },
+            },
+            scales: {
+                x: { beginAtZero: true, ticks: { stepSize: 1, precision: 0 }, grid: { color: C.grade } },
+                y: { grid: { display: false } }
+            }
+        }
+    });
+}());
+
+// ── 4. Barras empilhadas — Prioridades por solicitante ────────────────────
+(function () {
+    if (!_resumo.length) return;
+    const sorted = [..._resumo].sort((a, b) => b.total - a.total).slice(0, 10);
+    const labels = sorted.map(r => r.solicitante);
+
+    new Chart(document.getElementById('chartStack'), {
+        type: 'bar',
+        data: {
+            labels,
+            datasets: [
+                { label: 'Alta',  data: sorted.map(r => r.alta),  backgroundColor: C.alta,  stack: 's', borderRadius: 2 },
+                { label: 'Média', data: sorted.map(r => r.media), backgroundColor: C.media, stack: 's', borderRadius: 2 },
+                { label: 'Baixa', data: sorted.map(r => r.baixa), backgroundColor: C.baixa, stack: 's', borderRadius: 2 },
+            ]
+        },
+        options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'bottom', labels: { padding: 14, boxWidth: 12 } },
+            },
+            scales: {
+                x: { stacked: true, beginAtZero: true, ticks: { stepSize: 1, precision: 0 }, grid: { color: C.grade } },
+                y: { stacked: true, grid: { display: false } }
+            }
+        }
+    });
+}());
+
+// ── 5. Linha — Demandas ao longo do tempo ────────────────────────────────
+(function () {
+    if (!_demandas.length) return;
+
+    // Agrupa por dia (YYYY-MM-DD)
+    const contagem = {};
+    _demandas.forEach(d => {
+        if (!d.data_criacao) return;
+        const dia = d.data_criacao.slice(0, 10);
+        contagem[dia] = (contagem[dia] || 0) + 1;
+    });
+
+    const dias     = Object.keys(contagem).sort();
+    const valores  = dias.map(d => contagem[d]);
+    const labels   = dias.map(d => {
+        const [y, m, dia] = d.split('-');
+        return `${dia}/${m}/${y}`;
+    });
+
+    // Acumulado
+    let acc = 0;
+    const acumulado = valores.map(v => (acc += v, acc));
+
+    new Chart(document.getElementById('chartTimeline'), {
+        type: 'line',
+        data: {
+            labels,
+            datasets: [
+                {
+                    label: 'Criadas no dia',
+                    data: valores,
+                    borderColor: C.azul,
+                    backgroundColor: C.azul + '22',
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 4,
+                    pointHoverRadius: 6,
+                    borderWidth: 2,
+                    yAxisID: 'y',
+                },
+                {
+                    label: 'Total acumulado',
+                    data: acumulado,
+                    borderColor: C.media,
+                    backgroundColor: 'transparent',
+                    fill: false,
+                    tension: 0.4,
+                    pointRadius: 3,
+                    borderDash: [5, 4],
+                    borderWidth: 2,
+                    yAxisID: 'y2',
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+                legend: { position: 'bottom', labels: { padding: 14, boxWidth: 12 } },
+            },
+            scales: {
+                x:  { grid: { color: C.grade }, ticks: { maxTicksLimit: 12 } },
+                y:  {
+                    beginAtZero: true,
+                    ticks: { stepSize: 1, precision: 0 },
+                    grid: { color: C.grade },
+                    title: { display: true, text: 'Criadas no dia' },
+                },
+                y2: {
+                    position: 'right',
+                    beginAtZero: true,
+                    ticks: { stepSize: 1, precision: 0 },
+                    grid: { drawOnChartArea: false },
+                    title: { display: true, text: 'Acumulado' },
+                }
+            }
+        }
+    });
+}());
+</script>
+
 {% endblock %}

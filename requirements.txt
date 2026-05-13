@@ -1,3 +1,5 @@
 flask
 supabase==2.15.0
 python-dotenv
+openpyxl
+reportlab
