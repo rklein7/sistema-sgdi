@@ -5,6 +5,7 @@
     <h1 class="page-title">Nova Demanda</h1>
 
     <form method="POST" action="/nova_demanda">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
         <div class="field">
             <label for="titulo">Título</label>
             <input id="titulo" type="text" name="titulo" required>
@@ -19,6 +20,18 @@
             <label>Solicitante</label>
             <p class="readonly-value">{{ session['usuario_nome'] }}</p>
         </div>
+
+        {% if usuario_logado.role == 'manager' %}
+        <div class="field">
+            <label for="assignee_id">Responsavel executor</label>
+            <select id="assignee_id" name="assignee_id">
+                {% for usuario in usuarios %}
+                    <option value="{{ usuario.id }}" {% if usuario.id == usuario_logado.id %}selected{% endif %}>{{ usuario.nome }}</option>
+                {% endfor %}
+            </select>
+            <small>Por padrao, o responsavel e o proprio criador da demanda.</small>
+        </div>
+        {% endif %}
 
         <div class="field">
             <label for="prioridade">Prioridade</label>

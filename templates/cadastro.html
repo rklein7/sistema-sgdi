@@ -5,6 +5,7 @@
     <h1 class="page-title">Cadastro de Usuário</h1>
 
     <form method="POST" action="/cadastro">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
         <div class="field">
             <label for="nome">Nome</label>
             <input id="nome" type="text" name="nome" required>

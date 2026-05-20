@@ -5,8 +5,11 @@
     <h1 class="page-title">Editar Demanda</h1>
 
     <form method="POST" action="/editar/{{ demanda['id'] }}">
-        {% if not pode_gerenciar %}
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+        {% if not pode_gerenciar and pode_alterar_status %}
             <p class="muted">Você pode alterar apenas o status desta demanda.</p>
+        {% elif not pode_alterar_status %}
+            <p class="muted">Você não tem permissão para alterar o status desta demanda.</p>
         {% endif %}
 
         <div class="field">
@@ -23,6 +26,17 @@
             <label for="solicitante">Solicitante</label>
             <input id="solicitante" type="text" name="solicitante" value="{{ demanda['solicitante'] }}" required {% if not pode_gerenciar %}readonly{% endif %}>
         </div>
+
+        {% if usuario_logado.role == 'manager' %}
+        <div class="field">
+            <label for="assignee_id">Responsavel executor</label>
+            <select id="assignee_id" name="assignee_id" {% if not pode_gerenciar %}disabled{% endif %}>
+                {% for usuario in usuarios %}
+                    <option value="{{ usuario.id }}" {% if usuario.id == demanda.get('assignee_id') %}selected{% endif %}>{{ usuario.nome }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        {% endif %}
 
         <div class="field">
             <label for="data_criacao">Data de criação</label>
@@ -51,11 +65,22 @@
 
         <div class="field">
             <label for="status">Status</label>
-            <select id="status" name="status" required>
+            {% set status_atual = demanda.get('status') or 'Aberta' %}
+            {% set proximos_status = status_transitions.get(status_atual, []) %}
+            <select id="status" name="status" required {% if not pode_alterar_status %}disabled{% endif %}>
                 {% for status_item in status_validos %}
-                    <option value="{{ status_item }}" {% if status_item == (demanda.get('status') or 'Aberta') %}selected{% endif %}>{{ status_item }}</option>
+                    {% set status_habilitado = (status_item == status_atual) or (status_item in proximos_status) %}
+                    <option value="{{ status_item }}"
+                        {% if status_item == status_atual %}selected{% endif %}
+                        {% if pode_alterar_status and not status_habilitado %}disabled{% endif %}
+                    >
+                        {{ status_item }}{% if pode_alterar_status and not status_habilitado %} (não permitido){% endif %}
+                    </option>
                 {% endfor %}
             </select>
+            {% if pode_alterar_status %}
+                <small>Transições permitidas a partir de "{{ status_atual }}": {{ (proximos_status | list | sort | join(', ')) if proximos_status else 'nenhuma' }}.</small>
+            {% endif %}
         </div>
 
         <div class="form-actions">

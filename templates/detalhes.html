@@ -21,11 +21,27 @@
 
     <div class="detail-list">
         <div class="detail-row"><strong>Solicitante:</strong> {{ demanda['solicitante'] }}</div>
+        <div class="detail-row"><strong>Responsavel executor:</strong> {{ demanda.get('assignee_nome', 'Nao atribuido') }}</div>
         <div class="detail-row"><strong>Data de Criação:</strong> {{ demanda['data_criacao'] }}</div>
+        <div class="detail-row"><strong>Vencimento SLA:</strong> {{ demanda.get('due_date_fmt', '-') }}</div>
+        <div class="detail-row"><strong>Ultima mudanca de status:</strong> {{ demanda.get('status_updated_at_fmt', '-') }}</div>
+        <div class="detail-row"><strong>Resolvida em:</strong> {{ demanda.get('resolved_at_fmt', '-') }}</div>
         {% set status = demanda.get('status') or 'Aberta' %}
         <div class="detail-row">
             <strong>Status:</strong>
             <span class="badge status-badge badge--status-{{ status|lower|replace(' ', '-') }}">{{ status }}</span>
+        </div>
+        <div class="detail-row">
+            <strong>Prazo:</strong>
+            {% if demanda.get('esta_atrasada') %}
+                <span class="badge badge--sla-overdue">Atrasada ha {{ demanda.get('dias_atraso', 0) }} dia(s)</span>
+            {% elif status == 'Finalizada' %}
+                <span class="badge badge--sla-ok">Finalizada</span>
+            {% elif demanda.get('dias_para_vencimento') is not none and demanda.get('dias_para_vencimento') <= 1 %}
+                <span class="badge badge--sla-warning">Vence em {{ demanda.get('dias_para_vencimento') }} dia(s)</span>
+            {% else %}
+                <span class="badge badge--sla-ok">No prazo</span>
+            {% endif %}
         </div>
     </div>
 
@@ -33,11 +49,42 @@
         {% if pode_gerenciar %}
             <a class="button button--secondary" href="/editar/{{ demanda['id'] }}">Editar</a>
             <form method="POST" action="/deletar/{{ demanda['id'] }}" onsubmit="return confirm('Tem certeza que deseja deletar esta demanda? Esta ação não pode ser desfeita.');">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
                 <button class="button button--danger" type="submit">Deletar</button>
             </form>
         {% endif %}
         <a class="button button--secondary" href="/">Voltar</a>
     </div>
+</section>
+
+<section class="comments-panel">
+    <h2 class="section-title">Histórico</h2>
+    {% set labels = {
+        'criada': 'Demanda criada',
+        'status_alterado': 'Status alterado',
+        'prioridade_alterada': 'Prioridade alterada',
+        'assignee_alterado': 'Responsável alterado',
+        'reaberta': 'Demanda reaberta'
+    } %}
+
+    {% if eventos %}
+        <div class="timeline-list">
+            {% for evento in eventos %}
+                <article class="timeline-item">
+                    <p class="comment-meta">
+                        <strong>{{ labels.get(evento['tipo'], evento['tipo']) }}</strong>
+                        por {{ evento.get('autor', {}).get('nome', 'Sistema') }} em {{ evento['created_at'] }}
+                    </p>
+                    <p class="timeline-diff">
+                        antes: {{ evento.get('before_data', {}) }}<br>
+                        depois: {{ evento.get('after_data', {}) }}
+                    </p>
+                </article>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p class="muted">Nenhum evento registrado ainda.</p>
+    {% endif %}
 </section>
 
 <section class="comments-panel">
@@ -47,7 +94,7 @@
         <div class="comments-list">
             {% for comentario in comentarios %}
                 <article class="comment">
-                    <p class="comment-meta"><strong>{{ comentario['autor'] }}</strong> em {{ comentario['data'] }}</p>
+                    <p class="comment-meta"><strong>{{ comentario.get('usuarios', {}).get('nome', comentario.get('autor', 'Usuário')) }}</strong> em {{ comentario['data'] }}</p>
                     <p class="comment-text">{{ comentario['comentario'] }}</p>
                 </article>
             {% endfor %}
@@ -58,11 +105,7 @@
 
     <h3 class="section-title">Adicionar Comentário</h3>
     <form class="stack-form" method="POST" action="/adicionar_comentario/{{ demanda['id'] }}">
-        <div class="field">
-            <label for="autor">Seu nome</label>
-            <input id="autor" type="text" name="autor" required>
-        </div>
-
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
         <div class="field">
             <label for="comentario">Comentário</label>
             <textarea id="comentario" name="comentario" rows="4" required></textarea>

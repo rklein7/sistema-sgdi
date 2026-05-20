@@ -159,11 +159,32 @@ CREATE TABLE comentarios (
   data TIMESTAMP DEFAULT NOW()
 );
 
+CREATE TABLE demanda_eventos (
+  id BIGSERIAL PRIMARY KEY,
+  demanda_id BIGINT NOT NULL REFERENCES demandas(id) ON DELETE CASCADE,
+  tipo TEXT NOT NULL CHECK (tipo IN (
+    'criada',
+    'status_alterado',
+    'prioridade_alterada',
+    'assignee_alterado',
+    'reaberta'
+  )),
+  autor_id BIGINT REFERENCES usuarios(id) ON DELETE SET NULL,
+  before_data JSONB NOT NULL DEFAULT '{}'::jsonb,
+  after_data JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
 CREATE INDEX idx_demandas_usuario_id ON demandas(usuario_id);
 CREATE INDEX idx_demandas_prioridade ON demandas(prioridade);
 CREATE INDEX idx_demandas_solicitante ON demandas(solicitante);
 CREATE INDEX idx_comentarios_demanda_id ON comentarios(demanda_id);
+CREATE INDEX idx_demanda_eventos_demanda_id ON demanda_eventos(demanda_id);
+CREATE INDEX idx_demanda_eventos_created_at ON demanda_eventos(created_at DESC);
+CREATE INDEX idx_demanda_eventos_demanda_created_at ON demanda_eventos(demanda_id, created_at DESC);
 ```
+
+Se RLS estiver ativa nas tabelas, inclua policies equivalentes para `demanda_eventos` (ao menos `SELECT` e `INSERT`) para os perfis que já podem ver/alterar demandas; sem isso, o backend com chave anon não conseguirá gravar/ler a trilha de auditoria.
 
 ## Fluxo de Uso
 

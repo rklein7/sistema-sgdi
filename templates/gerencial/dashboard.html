@@ -1,0 +1,191 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Painel Gerencial</h1>
+        <p class="page-subtitle">Acompanhamento consolidado das demandas da operacao.</p>
+    </div>
+</div>
+
+<section class="manager-stats" aria-label="Resumo de demandas">
+    <article class="stat-card">
+        <span class="stat-label">Total</span>
+        <strong>{{ total_demandas }}</strong>
+    </article>
+    <article class="stat-card">
+        <span class="stat-label">Abertas</span>
+        <strong>{{ total_por_status['Aberta'] }}</strong>
+    </article>
+    <article class="stat-card">
+        <span class="stat-label">Em andamento</span>
+        <strong>{{ total_por_status['Em andamento'] }}</strong>
+    </article>
+    <article class="stat-card">
+        <span class="stat-label">Paradas</span>
+        <strong>{{ total_por_status['Parada'] }}</strong>
+    </article>
+    <article class="stat-card">
+        <span class="stat-label">Finalizadas</span>
+        <strong>{{ total_por_status['Finalizada'] }}</strong>
+    </article>
+</section>
+
+<section class="report-panel">
+    <div class="report-panel__header">
+        <h2 class="section-title">Distribuicao por Status</h2>
+    </div>
+    <div class="manager-chart-wrap">
+        <canvas id="statusChart" aria-label="Grafico de distribuicao por status"></canvas>
+    </div>
+</section>
+
+<section class="report-panel">
+    <div class="report-panel__header">
+        <h2 class="section-title">Demandas em Atraso</h2>
+    </div>
+    {% if demandas_atraso %}
+        <div class="table-wrap">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Titulo</th>
+                        <th>Responsavel</th>
+                        <th>Dias de atraso</th>
+                        <th>Vencimento SLA</th>
+                        <th>Prioridade</th>
+                        <th>Detalhes</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for demanda in demandas_atraso %}
+                        <tr>
+                            <td>{{ demanda.titulo }}</td>
+                            <td>{{ demanda.responsavel }}</td>
+                            <td>{{ demanda.dias_atraso }}</td>
+                            <td>{{ demanda.due_date_fmt }}</td>
+                            <td>
+                                {% if demanda.prioridade == 'Alta' %}
+                                    <span class="badge badge--priority-high">Alta</span>
+                                {% elif demanda.prioridade == 'Média' %}
+                                    <span class="badge badge--priority-medium">Média</span>
+                                {% else %}
+                                    <span class="badge badge--priority-low">Baixa</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a class="button button--secondary button--small" href="/detalhes/{{ demanda.id }}">Ver</a>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <div class="empty-state">Nao ha demandas em atraso no momento.</div>
+    {% endif %}
+</section>
+
+<section class="manager-grid">
+    <article class="report-panel">
+        <div class="report-panel__header">
+            <h2 class="section-title">Demandas por Usuario</h2>
+        </div>
+        {% if demandas_por_usuario %}
+            <div class="table-wrap">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Nome</th>
+                            <th>Total</th>
+                            <th>Em andamento</th>
+                            <th>Finalizadas</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in demandas_por_usuario %}
+                            <tr>
+                                <td>{{ item.nome }}</td>
+                                <td>{{ item.total }}</td>
+                                <td>{{ item.em_andamento }}</td>
+                                <td>{{ item.finalizadas }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="empty-state">Sem dados para agrupamento por usuario.</div>
+        {% endif %}
+    </article>
+
+    <article class="report-panel">
+        <div class="report-panel__header">
+            <h2 class="section-title">Ultimas 10 Atualizadas</h2>
+        </div>
+        {% if ultimas_atualizadas %}
+            <div class="table-wrap">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Titulo</th>
+                            <th>Solicitante</th>
+                            <th>Status</th>
+                            <th>Prioridade</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for demanda in ultimas_atualizadas %}
+                            {% set status = demanda.get('status') or 'Aberta' %}
+                            <tr>
+                                <td>{{ demanda.titulo }}</td>
+                                <td>{{ demanda.solicitante }}</td>
+                                <td><span class="badge badge--status-{{ status|lower|replace(' ', '-') }}">{{ status }}</span></td>
+                                <td>{{ demanda.prioridade }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="empty-state">Nenhuma atualizacao recente encontrada.</div>
+        {% endif %}
+    </article>
+</section>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    const ctx = document.getElementById('statusChart');
+    if (ctx) {
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: {{ chart_labels|tojson }},
+                datasets: [{
+                    label: 'Demandas por status',
+                    data: {{ chart_values|tojson }},
+                    backgroundColor: ['#2563eb', '#f59e0b', '#ef4444', '#16a34a'],
+                    borderRadius: 6,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false,
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            precision: 0,
+                        }
+                    }
+                }
+            }
+        });
+    }
+</script>
+{% endblock %}

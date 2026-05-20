@@ -6,16 +6,17 @@
     <a class="button" href="/nova_demanda">+ Nova Demanda</a>
 </div>
 
-<div class="filter-bar" aria-label="Filtro por prioridade">
-    <span class="filter-label">Filtrar por prioridade</span>
-    <a class="filter-link {% if filtro == 'Todas' %}active{% endif %}" href="/?prioridade=Todas{% if solicitante %}&solicitante={{ solicitante|urlencode }}{% endif %}">Todas</a>
-    {% for prioridade in prioridades %}
-        <a class="filter-link {% if filtro == prioridade %}active{% endif %}" href="/?prioridade={{ prioridade|urlencode }}{% if solicitante %}&solicitante={{ solicitante|urlencode }}{% endif %}">{{ prioridade }}</a>
-    {% endfor %}
-</div>
-
 <form class="inline-filter" method="GET" action="/">
-    <input type="hidden" name="prioridade" value="{{ filtro }}">
+    <div class="field">
+        <label for="prioridade">Prioridade</label>
+        <select id="prioridade" name="prioridade">
+            <option value="Todas" {% if filtro == 'Todas' %}selected{% endif %}>Todas</option>
+            {% for prioridade in prioridades %}
+                <option value="{{ prioridade }}" {% if filtro == prioridade %}selected{% endif %}>{{ prioridade }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
     <div class="field">
         <label for="solicitante">Solicitante</label>
         <select id="solicitante" name="solicitante">
@@ -25,16 +26,104 @@
             {% endfor %}
         </select>
     </div>
+
+    <div class="field">
+        <label for="assignee_id">Responsavel executor</label>
+        <select id="assignee_id" name="assignee_id">
+            <option value="">Todos</option>
+            {% for usuario in usuarios %}
+                <option value="{{ usuario.id }}" {% if assignee_id_filtro == (usuario.id|string) %}selected{% endif %}>{{ usuario.nome }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div class="field">
+        <label for="data_inicio">Periodo - inicio</label>
+        <input id="data_inicio" type="date" name="data_inicio" value="{{ data_inicio }}">
+    </div>
+
+    <div class="field">
+        <label for="data_fim">Periodo - fim</label>
+        <input id="data_fim" type="date" name="data_fim" value="{{ data_fim }}">
+    </div>
+
+    <div class="field">
+        <label for="sort_by">Ordenar por</label>
+        <select id="sort_by" name="sort_by">
+            <option value="updated_at" {% if sort_by == 'updated_at' %}selected{% endif %}>Ultima atualização</option>
+            <option value="prioridade" {% if sort_by == 'prioridade' %}selected{% endif %}>Prioridade</option>
+            <option value="due_date" {% if sort_by == 'due_date' %}selected{% endif %}>Vencimento SLA</option>
+        </select>
+    </div>
+
+    <div class="field">
+        <label for="sort_dir">Direção</label>
+        <select id="sort_dir" name="sort_dir">
+            <option value="desc" {% if sort_dir == 'desc' %}selected{% endif %}>Decrescente</option>
+            <option value="asc" {% if sort_dir == 'asc' %}selected{% endif %}>Crescente</option>
+        </select>
+    </div>
+
+    <div class="field">
+        <label for="per_page">Itens por pagina</label>
+        <select id="per_page" name="per_page">
+            <option value="12" {% if per_page == 12 %}selected{% endif %}>12</option>
+            <option value="24" {% if per_page == 24 %}selected{% endif %}>24</option>
+            <option value="48" {% if per_page == 48 %}selected{% endif %}>48</option>
+        </select>
+    </div>
+
+    <fieldset class="field checkbox-group">
+        <legend>Status</legend>
+        {% for status_item in status_validos %}
+            <label class="checkbox-item">
+                <input type="checkbox" name="status" value="{{ status_item }}" {% if status_item in status_filtro %}checked{% endif %}>
+                <span>{{ status_item }}</span>
+            </label>
+        {% endfor %}
+    </fieldset>
+
+    <label class="checkbox-item checkbox-item--solo">
+        <input type="checkbox" name="minhas_demandas" value="1" {% if minhas_demandas %}checked{% endif %}>
+        <span>Minhas demandas</span>
+    </label>
+
     <button type="submit">Filtrar</button>
-    {% if solicitante %}
-        <a class="button button--secondary" href="/?prioridade={{ filtro|urlencode }}">Limpar</a>
-    {% endif %}
+    <a class="button button--secondary" href="/">Limpar</a>
 </form>
+
+<form method="POST" action="/demandas/lote/status">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="redirect_to" value="{{ request.full_path if request.query_string else request.path }}">
+    <div class="bulk-bar" aria-label="Ações em lote">
+        <div class="bulk-bar__controls">
+            <label class="checkbox-item checkbox-item--solo">
+                <input id="select-all-demandas" type="checkbox">
+                <span>Selecionar pagina</span>
+            </label>
+            <div class="field bulk-status-field">
+                <label for="novo_status">Novo status em lote</label>
+                <select id="novo_status" name="novo_status" required>
+                    <option value="">Selecione</option>
+                    {% for status_item in status_validos %}
+                        <option value="{{ status_item }}">{{ status_item }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button class="button button--secondary button--small" type="submit">Aplicar em selecionadas</button>
+        </div>
+        <span class="muted">Total encontrado: {{ total_registros }} demanda(s)</span>
+    </div>
 
 {% if demandas %}
     <section class="demand-grid" aria-label="Demandas">
         {% for demanda in demandas %}
             <article class="demand-card">
+                <label class="checkbox-item checkbox-item--card">
+                    <input class="demanda-checkbox" type="checkbox" name="demanda_ids" value="{{ demanda['id'] }}">
+                    <span>Selecionar demanda #{{ demanda['id'] }}</span>
+                </label>
+
                 <div class="demand-card__top">
                     <div>
                         <span class="demand-id">#{{ demanda['id'] }}</span>
@@ -52,19 +141,33 @@
 
                 <div class="demand-meta">
                     <span>Solicitante: {{ demanda['solicitante'] }}</span>
+                    <span>Responsavel executor: {{ demanda.get('assignee_nome', 'Nao atribuido') }}</span>
                     <span>Data: {{ demanda['data_criacao'] }}</span>
+                    <span>Vencimento SLA: {{ demanda.get('due_date_fmt', '-') }}</span>
                 </div>
 
                 {% set status = demanda.get('status') or 'Aberta' %}
                 <div class="status-row">
                     <span class="badge status-badge badge--status-{{ status|lower|replace(' ', '-') }}">{{ status }}</span>
+                    {% if demanda.get('esta_atrasada') %}
+                        <span class="badge badge--sla-overdue">Atrasada ha {{ demanda.get('dias_atraso', 0) }} dia(s)</span>
+                    {% elif demanda.get('dias_para_vencimento') is not none %}
+                        {% if demanda.get('dias_para_vencimento') <= 1 and status != 'Finalizada' %}
+                            <span class="badge badge--sla-warning">SLA vence em {{ demanda.get('dias_para_vencimento') }} dia(s)</span>
+                        {% else %}
+                            <span class="badge badge--sla-ok">No prazo</span>
+                        {% endif %}
+                    {% endif %}
                 </div>
 
                 <div class="demand-actions">
                     <a class="button button--secondary button--small" href="/detalhes/{{ demanda['id'] }}">Ver</a>
-                    {% if demanda['usuario_id'] == usuario_logado.id %}
+                    {% if demanda['usuario_id'] == usuario_logado.id or demanda.get('assignee_id') == usuario_logado.id or usuario_logado.role == 'manager' %}
                         <a class="button button--secondary button--small" href="/editar/{{ demanda['id'] }}">Editar</a>
+                    {% endif %}
+                    {% if demanda['usuario_id'] == usuario_logado.id or usuario_logado.role == 'manager' %}
                         <form method="POST" action="/deletar/{{ demanda['id'] }}" onsubmit="return confirm('Tem certeza que deseja deletar esta demanda? Esta ação não pode ser desfeita.');">
+                            <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
                             <button class="button button--danger button--small" type="submit">Deletar</button>
                         </form>
                     {% endif %}
@@ -72,7 +175,36 @@
             </article>
         {% endfor %}
     </section>
+
+    <nav class="pagination" aria-label="Paginação da listagem">
+        {% if prev_page_url %}
+            <a class="button button--secondary button--small" href="{{ prev_page_url }}">Anterior</a>
+        {% endif %}
+
+        <span class="pagination__info">Pagina {{ page }} de {{ total_paginas }}</span>
+
+        {% if next_page_url %}
+            <a class="button button--secondary button--small" href="{{ next_page_url }}">Próxima</a>
+        {% endif %}
+    </nav>
 {% else %}
     <div class="empty-state">Nenhuma demanda encontrada.</div>
 {% endif %}
+</form>
+
+<script>
+    (function () {
+        var selectAll = document.getElementById('select-all-demandas');
+        var checkboxes = Array.prototype.slice.call(document.querySelectorAll('.demanda-checkbox'));
+        if (!selectAll || !checkboxes.length) {
+            return;
+        }
+
+        selectAll.addEventListener('change', function () {
+            checkboxes.forEach(function (checkbox) {
+                checkbox.checked = selectAll.checked;
+            });
+        });
+    })();
+</script>
 {% endblock %}
