@@ -27,6 +27,14 @@ def configure_flask_app(app):
         os.environ.get("SESSION_COOKIE_SECURE")
     )
     app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(hours=8)
+    app.config["API_KEY"] = os.environ.get("API_KEY", "").strip()
+    app.config["API_KEYS_RAW"] = os.environ.get("API_KEYS", "").strip()
+    app.config["API_RATE_LIMIT_MAX_REQUESTS"] = int(
+        os.environ.get("API_RATE_LIMIT_MAX_REQUESTS", "120")
+    )
+    app.config["API_RATE_LIMIT_WINDOW_SECONDS"] = int(
+        os.environ.get("API_RATE_LIMIT_WINDOW_SECONDS", "60")
+    )
 
 
 def create_supabase_client() -> Client:

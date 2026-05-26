@@ -1,0 +1,779 @@
+openapi: 3.0.3
+info:
+  title: SGDI API
+  version: 1.0.0
+  description: |
+    API do Sistema de Gestao de Demandas Internas.
+
+    Guia rapido v1:
+    1. Envie `X-API-Key` com uma chave valida.
+    2. Para endpoints de demandas, envie `X-User-Id` e opcionalmente `X-User-Role`.
+    3. Use `GET /api/v1/health` para smoke test.
+    4. Use `GET /api/v1/demandas` para listar e `POST /api/v1/demandas` para criar.
+    5. Use endpoints complementares de comentarios/eventos e lote para operacao diaria.
+servers:
+  - url: http://localhost:5000
+    description: Ambiente local
+security:
+  - ApiKeyAuth: []
+tags:
+  - name: Health
+  - name: Demandas
+  - name: Comentarios
+  - name: Eventos
+  - name: Usuarios
+paths:
+  /api/v1/health:
+    get:
+      tags: [Health]
+      summary: Verifica disponibilidade da API
+      security:
+        - ApiKeyAuth: [health:read]
+      responses:
+        '200':
+          description: API saudavel
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          status: { type: string, example: ok }
+                          service: { type: string, example: sistema-sgdi-api }
+                          version: { type: string, example: v1 }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/v1/demandas:
+    get:
+      tags: [Demandas]
+      summary: Lista demandas com filtros, ordenacao e paginacao
+      security:
+        - ApiKeyAuth: [demandas:read]
+      parameters:
+        - $ref: '#/components/parameters/XUserId'
+        - $ref: '#/components/parameters/XUserRole'
+        - in: query
+          name: prioridade
+          schema:
+            type: string
+            enum: [Todas, Alta, Média, Baixa]
+            default: Todas
+        - in: query
+          name: solicitante
+          schema: { type: string }
+        - in: query
+          name: status
+          description: Pode ser enviado mais de uma vez.
+          schema:
+            type: string
+            enum: [Aberta, Em andamento, Parada, Finalizada]
+        - in: query
+          name: data_inicio
+          schema: { type: string, format: date }
+        - in: query
+          name: data_fim
+          schema: { type: string, format: date }
+        - in: query
+          name: assignee_id
+          schema: { type: integer, minimum: 1 }
+        - in: query
+          name: minhas_demandas
+          schema: { type: string, enum: ['0', '1'], default: '0' }
+        - in: query
+          name: sort_by
+          schema:
+            type: string
+            enum: [updated_at, prioridade, due_date, data_criacao]
+            default: updated_at
+        - in: query
+          name: sort_dir
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: desc
+        - in: query
+          name: page
+          schema: { type: integer, minimum: 1, default: 1 }
+        - in: query
+          name: per_page
+          schema: { type: integer, minimum: 1, maximum: 50, default: 12 }
+      responses:
+        '200':
+          description: Lista paginada
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          items:
+                            type: array
+                            items: { $ref: '#/components/schemas/Demanda' }
+                          pagination: { $ref: '#/components/schemas/Pagination' }
+                          sort:
+                            type: object
+                            properties:
+                              sort_by: { type: string, example: updated_at }
+                              sort_dir: { type: string, example: desc }
+                          filters:
+                            type: object
+                            properties:
+                              prioridade: { type: string, example: Todas }
+                              solicitante: { type: string, example: '' }
+                              status:
+                                type: array
+                                items: { type: string }
+                              data_inicio: { type: string, example: '' }
+                              data_fim: { type: string, example: '' }
+                              assignee_id: { type: string, example: '5' }
+                              minhas_demandas: { type: boolean, example: false }
+              examples:
+                default:
+                  value:
+                    success: true
+                    message: demandas_listadas
+                    data:
+                      items:
+                        - id: 101
+                          titulo: Ajustar permissao de acesso
+                          descricao: Equipe fiscal sem acesso ao modulo X.
+                          prioridade: Alta
+                          status: Em andamento
+                          solicitante: Ana Lima
+                          usuario_id: 2
+                          assignee_id: 5
+                          assignee_nome: Carlos Souza
+                          data_criacao: '2026-05-26T10:30:00+00:00'
+                          updated_at: '2026-05-26T11:05:00+00:00'
+                          status_updated_at: '2026-05-26T10:55:00+00:00'
+                          due_date: '2026-05-28T10:30:00+00:00'
+                          resolved_at: null
+                      pagination:
+                        page: 1
+                        per_page: 12
+                        total_items: 37
+                        total_pages: 4
+                      sort:
+                        sort_by: updated_at
+                        sort_dir: desc
+                      filters:
+                        prioridade: Todas
+                        solicitante: ''
+                        status: []
+                        data_inicio: ''
+                        data_fim: ''
+                        assignee_id: ''
+                        minhas_demandas: false
+                    error: null
+                    meta:
+                      timestamp: '2026-05-26T11:10:00+00:00'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+
+    post:
+      tags: [Demandas]
+      summary: Cria nova demanda
+      security:
+        - ApiKeyAuth: [demandas:write]
+      parameters:
+        - $ref: '#/components/parameters/XUserId'
+        - $ref: '#/components/parameters/XUserRole'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DemandaCreateRequest' }
+            examples:
+              padrao:
+                value:
+                  titulo: Ajustar permissao de acesso
+                  descricao: Equipe fiscal sem acesso ao modulo X.
+                  solicitante: Ana Lima
+                  prioridade: Alta
+                  assignee_id: 5
+      responses:
+        '201':
+          description: Demanda criada
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/Demanda' }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+
+  /api/v1/demandas/{id}:
+    get:
+      tags: [Demandas]
+      summary: Busca demanda por ID
+      security:
+        - ApiKeyAuth: [demandas:read]
+      parameters:
+        - $ref: '#/components/parameters/XUserId'
+        - $ref: '#/components/parameters/XUserRole'
+        - $ref: '#/components/parameters/DemandaId'
+      responses:
+        '200':
+          description: Demanda encontrada
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/Demanda' }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+
+  /api/v1/demandas/{id}/comentarios:
+    get:
+      tags: [Comentarios]
+      summary: Lista comentarios de uma demanda
+      security:
+        - ApiKeyAuth: [demandas:read]
+      parameters:
+        - $ref: '#/components/parameters/XUserId'
+        - $ref: '#/components/parameters/XUserRole'
+        - $ref: '#/components/parameters/DemandaId'
+      responses:
+        '200':
+          description: Comentarios listados
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/Comentario' }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+    post:
+      tags: [Comentarios]
+      summary: Adiciona comentario em uma demanda
+      security:
+        - ApiKeyAuth: [demandas:write]
+      parameters:
+        - $ref: '#/components/parameters/XUserId'
+        - $ref: '#/components/parameters/XUserRole'
+        - $ref: '#/components/parameters/DemandaId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ComentarioCreateRequest' }
+      responses:
+        '201':
+          description: Comentario criado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SuccessResponse' }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /api/v1/demandas/{id}/eventos:
+    get:
+      tags: [Eventos]
+      summary: Lista trilha de eventos de uma demanda
+      security:
+        - ApiKeyAuth: [demandas:read]
+      parameters:
+        - $ref: '#/components/parameters/XUserId'
+        - $ref: '#/components/parameters/XUserRole'
+        - $ref: '#/components/parameters/DemandaId'
+      responses:
+        '200':
+          description: Eventos listados
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/DemandaEvento' }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /api/v1/demandas/lote/status:
+    post:
+      tags: [Demandas]
+      summary: Atualiza status em lote
+      security:
+        - ApiKeyAuth: [demandas:write]
+      parameters:
+        - $ref: '#/components/parameters/XUserId'
+        - $ref: '#/components/parameters/XUserRole'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LoteStatusRequest' }
+      responses:
+        '200':
+          description: Lote processado
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/LoteStatusResponse' }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /api/v1/usuarios:
+    get:
+      tags: [Usuarios]
+      summary: Catalogo restrito de usuarios
+      security:
+        - ApiKeyAuth: [usuarios:read]
+      responses:
+        '200':
+          description: Catalogo retornado
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/UsuarioCatalogo' }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+    patch:
+      tags: [Demandas]
+      summary: Atualiza parcialmente uma demanda
+      security:
+        - ApiKeyAuth: [demandas:write]
+      parameters:
+        - $ref: '#/components/parameters/XUserId'
+        - $ref: '#/components/parameters/XUserRole'
+        - $ref: '#/components/parameters/DemandaId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DemandaPatchRequest' }
+            examples:
+              atualiza_status:
+                value: { status: Finalizada }
+              atualiza_gerencial:
+                value:
+                  prioridade: Baixa
+                  assignee_id: 7
+      responses:
+        '200':
+          description: Demanda atualizada
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/Demanda' }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+
+    delete:
+      tags: [Demandas]
+      summary: Remove demanda por ID
+      security:
+        - ApiKeyAuth: [demandas:write]
+      parameters:
+        - $ref: '#/components/parameters/XUserId'
+        - $ref: '#/components/parameters/XUserRole'
+        - $ref: '#/components/parameters/DemandaId'
+      responses:
+        '200':
+          description: Demanda removida
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          id: { type: integer, example: 101 }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: Chave de API enviada no header X-API-Key.
+
+  parameters:
+    DemandaId:
+      in: path
+      name: id
+      required: true
+      schema: { type: integer, minimum: 1 }
+    XUserId:
+      in: header
+      name: X-User-Id
+      required: true
+      schema: { type: integer, minimum: 1 }
+      description: ID do usuario executor para regras de permissao.
+    XUserRole:
+      in: header
+      name: X-User-Role
+      required: false
+      schema:
+        type: string
+        enum: [user, manager]
+        default: user
+      description: Perfil do usuario executor.
+
+  responses:
+    Unauthorized:
+      description: API key ausente ou invalida
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+          examples:
+            missing_key:
+              value:
+                success: false
+                message: Nao autorizado.
+                data: null
+                error:
+                  code: UNAUTHORIZED
+                  details: { reason: API key ausente. }
+                meta: { timestamp: '2026-05-26T11:10:00+00:00' }
+    Forbidden:
+      description: Falta de permissao para a operacao
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+          examples:
+            forbidden:
+              value:
+                success: false
+                message: Acesso negado.
+                data: null
+                error: { code: FORBIDDEN, details: {} }
+                meta: { timestamp: '2026-05-26T11:10:00+00:00' }
+    NotFound:
+      description: Recurso nao encontrado
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+          examples:
+            not_found:
+              value:
+                success: false
+                message: Demanda nao encontrada.
+                data: null
+                error: { code: NOT_FOUND, details: {} }
+                meta: { timestamp: '2026-05-26T11:10:00+00:00' }
+    Conflict:
+      description: Violacao de regra de negocio
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+          examples:
+            transicao_invalida:
+              value:
+                success: false
+                message: Transicao de status invalida.
+                data: null
+                error:
+                  code: CONFLICT
+                  details:
+                    from: Aberta
+                    to: Finalizada
+                meta: { timestamp: '2026-05-26T11:10:00+00:00' }
+    UnprocessableEntity:
+      description: Erro de validacao de entrada
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+          examples:
+            invalid_field:
+              value:
+                success: false
+                message: Payload invalido.
+                data: null
+                error:
+                  code: UNPROCESSABLE_ENTITY
+                  details:
+                    fields:
+                      prioridade: valor invalido
+                meta: { timestamp: '2026-05-26T11:10:00+00:00' }
+    TooManyRequests:
+      description: Limite de requisicoes por API key excedido
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+          examples:
+            limit_reached:
+              value:
+                success: false
+                message: Limite de requisicoes excedido.
+                data: null
+                error:
+                  code: TOO_MANY_REQUESTS
+                  details: { reason: Limite de requisicoes excedido para esta API key. }
+                meta: { timestamp: '2026-05-26T11:10:00+00:00' }
+
+  schemas:
+    Demanda:
+      type: object
+      properties:
+        id: { type: integer, example: 101 }
+        titulo: { type: string, example: Ajustar permissao de acesso }
+        descricao: { type: string, example: Equipe fiscal sem acesso ao modulo X. }
+        prioridade:
+          type: string
+          enum: [Alta, Média, Baixa]
+          example: Alta
+        status:
+          type: string
+          enum: [Aberta, Em andamento, Parada, Finalizada]
+          example: Em andamento
+        solicitante: { type: string, example: Ana Lima }
+        usuario_id: { type: integer, example: 2 }
+        assignee_id: { type: integer, nullable: true, example: 5 }
+        assignee_nome: { type: string, nullable: true, example: Carlos Souza }
+        data_criacao: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        status_updated_at: { type: string, format: date-time }
+        due_date: { type: string, format: date-time }
+        resolved_at: { type: string, format: date-time, nullable: true }
+
+    DemandaCreateRequest:
+      type: object
+      required: [titulo, descricao, solicitante, prioridade]
+      properties:
+        titulo: { type: string, minLength: 1 }
+        descricao: { type: string, minLength: 1 }
+        solicitante: { type: string, minLength: 1 }
+        prioridade:
+          type: string
+          enum: [Alta, Média, Baixa]
+        assignee_id:
+          type: integer
+          nullable: true
+
+    DemandaPatchRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        titulo: { type: string, minLength: 1 }
+        descricao: { type: string, minLength: 1 }
+        solicitante: { type: string, minLength: 1 }
+        prioridade:
+          type: string
+          enum: [Alta, Média, Baixa]
+        status:
+          type: string
+          enum: [Aberta, Em andamento, Parada, Finalizada]
+        assignee_id:
+          type: integer
+          nullable: true
+
+    Comentario:
+      type: object
+      properties:
+        id: { type: integer, example: 990 }
+        demanda_id: { type: integer, example: 101 }
+        comentario: { type: string, example: Ajuste aplicado em homologacao. }
+        autor: { type: string, nullable: true, example: Carlos Souza }
+        autor_id: { type: integer, nullable: true, example: 5 }
+        data: { type: string, format: date-time }
+
+    ComentarioCreateRequest:
+      type: object
+      required: [comentario]
+      properties:
+        comentario: { type: string, minLength: 1, maxLength: 2000 }
+
+    DemandaEvento:
+      type: object
+      properties:
+        id: { type: integer, example: 7001 }
+        demanda_id: { type: integer, example: 101 }
+        tipo: { type: string, example: status_alterado }
+        before_data: { type: object, additionalProperties: true }
+        after_data: { type: object, additionalProperties: true }
+        autor_id: { type: integer, nullable: true, example: 5 }
+        autor_nome: { type: string, nullable: true, example: Carlos Souza }
+        created_at: { type: string, format: date-time }
+
+    LoteStatusRequest:
+      type: object
+      required: [ids, status]
+      properties:
+        ids:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items: { type: integer, minimum: 1 }
+        status:
+          type: string
+          enum: [Aberta, Em andamento, Parada, Finalizada]
+
+    LoteStatusResponse:
+      type: object
+      properties:
+        status_aplicado: { type: string, example: Em andamento }
+        updated_count: { type: integer, example: 3 }
+        failed_count: { type: integer, example: 1 }
+        updated:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: integer }
+              from: { type: string }
+              to: { type: string }
+        failed:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: integer }
+              code: { type: string }
+              message: { type: string }
+              details: { type: object, additionalProperties: true }
+
+    UsuarioCatalogo:
+      type: object
+      properties:
+        id: { type: integer, example: 5 }
+        nome: { type: string, example: Carlos Souza }
+
+    SuccessResponse:
+      type: object
+      required: [success, message, data, error, meta]
+      properties:
+        success: { type: boolean, example: true }
+        message: { type: string, example: ok }
+        data: { nullable: true }
+        error: { nullable: true, example: null }
+        meta:
+          type: object
+          properties:
+            timestamp: { type: string, format: date-time }
+
+    ErrorResponse:
+      type: object
+      required: [success, message, data, error, meta]
+      properties:
+        success: { type: boolean, example: false }
+        message: { type: string, example: Nao autorizado. }
+        data: { nullable: true, example: null }
+        error:
+          type: object
+          required: [code, details]
+          properties:
+            code: { type: string, example: UNAUTHORIZED }
+            details:
+              type: object
+              additionalProperties: true
+        meta:
+          type: object
+          properties:
+            timestamp: { type: string, format: date-time }
+
+    Pagination:
+      type: object
+      required: [page, per_page, total_items, total_pages]
+      properties:
+        page: { type: integer, minimum: 1, example: 1 }
+        per_page: { type: integer, minimum: 1, example: 12 }
+        total_items: { type: integer, minimum: 0, example: 37 }
+        total_pages: { type: integer, minimum: 1, example: 4 }

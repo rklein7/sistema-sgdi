@@ -107,6 +107,7 @@ Crie um arquivo `.env` na raiz do projeto:
 SUPABASE_URL=https://seu-projeto.supabase.co
 SUPABASE_KEY=sua-chave-anon-public
 SECRET_KEY=troque-por-uma-chave-forte
+API_KEYS=minha-chave-interna:health:read
 ```
 
 Observações:
@@ -114,6 +115,12 @@ Observações:
 - O arquivo `.env` não deve ser versionado.
 - `SECRET_KEY` deve ser forte e exclusiva por ambiente.
 - O projeto atual usa a chave `anon public` do Supabase.
+- Para API, configure `API_KEYS` no formato `chave:escopo1,escopo2;outra-chave:*`.
+- Opcionalmente, use `id|chave` para rastreio de uso: `integracao-a|minha-chave:demandas:read`.
+- Como fallback, `API_KEY` (chave unica) concede acesso com escopo total (`*`).
+- Hardening opcional:
+  - `API_RATE_LIMIT_MAX_REQUESTS` (padrao: `120`)
+  - `API_RATE_LIMIT_WINDOW_SECONDS` (padrao: `60`)
 
 ### Executar
 
@@ -125,6 +132,12 @@ Acesse:
 
 ```text
 http://localhost:5000
+```
+
+Documentacao Swagger:
+
+```text
+http://localhost:5000/api/docs
 ```
 
 ## Banco de Dados
@@ -215,6 +228,46 @@ Se RLS estiver ativa nas tabelas, inclua policies equivalentes para `demanda_eve
 | GET | `/gerencial/dashboard/exportar/csv` | Exporta painel gerencial em CSV | Sim (manager) |
 | GET | `/gerencial/dashboard/exportar/pdf` | Exporta painel gerencial em PDF | Sim (manager) |
 | GET | `/relatorios` | Redirecionamento temporário para `/gerencial/dashboard` | Sim |
+| GET | `/api/docs` | Swagger UI da API | Não |
+| GET | `/api/v1/health` | Healthcheck protegido por API key (`health:read`) | Não |
+| GET | `/api/v1/demandas` | Lista demandas com filtros/paginação (`demandas:read`) | Não |
+| GET | `/api/v1/demandas/<id>` | Busca demanda por ID (`demandas:read`) | Não |
+| POST | `/api/v1/demandas` | Cria demanda (`demandas:write`) | Não |
+| PATCH | `/api/v1/demandas/<id>` | Atualiza demanda (`demandas:write`) | Não |
+| DELETE | `/api/v1/demandas/<id>` | Remove demanda (`demandas:write`) | Não |
+| GET | `/api/v1/demandas/<id>/comentarios` | Lista comentarios (`demandas:read`) | Não |
+| POST | `/api/v1/demandas/<id>/comentarios` | Cria comentario (`demandas:write`) | Não |
+| GET | `/api/v1/demandas/<id>/eventos` | Lista trilha de eventos (`demandas:read`) | Não |
+| POST | `/api/v1/demandas/lote/status` | Atualiza status em lote (`demandas:write`) | Não |
+| GET | `/api/v1/usuarios` | Catálogo restrito de usuários (`usuarios:read`) | Não |
+
+## API v1 - Operação e hardening
+
+- Rate limit básico por API key (janela fixa em memória do processo Flask).
+- Atualização best effort de `api_keys.last_used_at` por `key_id`.
+- Logs de acesso API no logger e persistência best effort em `api_access_logs`.
+
+SQL recomendado para observabilidade operacional:
+
+```sql
+CREATE TABLE api_keys (
+  key_id TEXT PRIMARY KEY,
+  nome TEXT,
+  last_used_at TIMESTAMPTZ
+);
+
+CREATE TABLE api_access_logs (
+  id BIGSERIAL PRIMARY KEY,
+  key_id TEXT,
+  endpoint TEXT NOT NULL,
+  status INT NOT NULL,
+  latency_ms INT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+CREATE INDEX idx_api_access_logs_key_id ON api_access_logs(key_id);
+CREATE INDEX idx_api_access_logs_created_at ON api_access_logs(created_at DESC);
+```
 
 ## Painel Gerencial
 

@@ -37,6 +37,9 @@ def _get_or_create_csrf_token():
 def register_auth_handlers(app):
     @app.before_request
     def csrf_protect():
+        if request.path.startswith("/api/"):
+            return None
+
         if request.method in {"POST", "PUT", "PATCH", "DELETE"}:
             session_token = session.get("_csrf_token")
             request_token = request.form.get("_csrf_token") or request.headers.get(
