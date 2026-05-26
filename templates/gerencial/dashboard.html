@@ -6,7 +6,72 @@
         <h1 class="page-title">Painel Gerencial</h1>
         <p class="page-subtitle">Acompanhamento consolidado das demandas da operacao.</p>
     </div>
+    <div class="header-actions">
+        <a class="button button--secondary" href="/gerencial/dashboard/exportar/csv{% if export_querystring %}?{{ export_querystring }}{% endif %}">Exportar CSV</a>
+        <a class="button button--secondary" href="/gerencial/dashboard/exportar/pdf{% if export_querystring %}?{{ export_querystring }}{% endif %}">Exportar PDF</a>
+    </div>
 </div>
+
+<form class="inline-filter" method="GET" action="/gerencial/dashboard">
+    <div class="field">
+        <label for="gerencial-prioridade">Prioridade</label>
+        <select id="gerencial-prioridade" name="prioridade">
+            <option value="Todas" {% if filtros.prioridade == 'Todas' %}selected{% endif %}>Todas</option>
+            {% for prioridade in prioridades %}
+                <option value="{{ prioridade }}" {% if filtros.prioridade == prioridade %}selected{% endif %}>{{ prioridade }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <fieldset class="checkbox-group">
+        <legend>Status</legend>
+        {% for status_item in status_validos %}
+            <label class="checkbox-item">
+                <input type="checkbox" name="status" value="{{ status_item }}" {% if status_item in filtros.status_filtro %}checked{% endif %}>
+                <span>{{ status_item }}</span>
+            </label>
+        {% endfor %}
+    </fieldset>
+
+    <div class="field">
+        <label for="gerencial-assignee">Responsavel</label>
+        <select id="gerencial-assignee" name="assignee_id">
+            <option value="">Todos</option>
+            {% for usuario in usuarios %}
+                <option value="{{ usuario.id }}" {% if filtros.assignee_id == (usuario.id|string) %}selected{% endif %}>{{ usuario.nome }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div class="field">
+        <label for="gerencial-data-inicio">Periodo - inicio</label>
+        <input id="gerencial-data-inicio" type="date" name="data_inicio" value="{{ filtros.data_inicio }}">
+    </div>
+
+    <div class="field">
+        <label for="gerencial-data-fim">Periodo - fim</label>
+        <input id="gerencial-data-fim" type="date" name="data_fim" value="{{ filtros.data_fim }}">
+    </div>
+
+    <div class="field">
+        <label for="gerencial-agregacao">Evolucao temporal</label>
+        <select id="gerencial-agregacao" name="agregacao">
+            <option value="dia" {% if filtros.agregacao == 'dia' %}selected{% endif %}>Por dia</option>
+            <option value="semana" {% if filtros.agregacao == 'semana' %}selected{% endif %}>Por semana</option>
+        </select>
+    </div>
+
+    <div class="form-actions">
+        <button class="button" type="submit">Filtrar</button>
+        <a class="button button--secondary" href="/gerencial/dashboard">Limpar</a>
+    </div>
+</form>
+
+{% if filtros.sla_status %}
+    <div class="filter-pill-row">
+        <span class="filter-pill">SLA: {% if filtros.sla_status == 'no_prazo' %}No prazo{% elif filtros.sla_status == 'vencendo' %}Vencendo{% else %}Atrasadas{% endif %}</span>
+    </div>
+{% endif %}
 
 <section class="manager-stats" aria-label="Resumo de demandas">
     <article class="stat-card">
@@ -37,6 +102,35 @@
     </div>
     <div class="manager-chart-wrap">
         <canvas id="statusChart" aria-label="Grafico de distribuicao por status"></canvas>
+    </div>
+</section>
+
+<section class="manager-grid manager-grid--charts">
+    <article class="report-panel">
+        <div class="report-panel__header">
+            <h2 class="section-title">Evolucao temporal</h2>
+        </div>
+        <div class="manager-chart-wrap manager-chart-wrap--sm">
+            <canvas id="timelineChart" aria-label="Grafico de evolucao temporal"></canvas>
+        </div>
+    </article>
+
+    <article class="report-panel">
+        <div class="report-panel__header">
+            <h2 class="section-title">Distribuicao por Prioridade</h2>
+        </div>
+        <div class="manager-chart-wrap manager-chart-wrap--sm">
+            <canvas id="priorityChart" aria-label="Grafico de distribuicao por prioridade"></canvas>
+        </div>
+    </article>
+</section>
+
+<section class="report-panel">
+    <div class="report-panel__header">
+        <h2 class="section-title">KPI de SLA</h2>
+    </div>
+    <div class="manager-chart-wrap manager-chart-wrap--sm">
+        <canvas id="slaChart" aria-label="Grafico de KPI de SLA"></canvas>
     </div>
 </section>
 
@@ -155,9 +249,43 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-    const ctx = document.getElementById('statusChart');
-    if (ctx) {
-        new Chart(ctx, {
+    const buildDrilldownUrl = (params) => {
+        const url = new URL(window.location.href);
+        for (const [key, value] of Object.entries(params)) {
+            if (value === null || value === undefined || value === '') {
+                url.searchParams.delete(key);
+                continue;
+            }
+            if (Array.isArray(value)) {
+                url.searchParams.delete(key);
+                value.forEach((item) => url.searchParams.append(key, item));
+            } else {
+                url.searchParams.set(key, value);
+            }
+        }
+        return url.toString();
+    };
+
+    const temporalRanges = {{ chart_temporal_ranges|tojson }};
+
+    const drilldownClick = (chart, builder) => {
+        if (!chart) {
+            return;
+        }
+        chart.canvas.onclick = (event) => {
+            const points = chart.getElementsAtEventForMode(event, 'nearest', { intersect: true }, false);
+            if (!points.length) {
+                return;
+            }
+            const active = points[0];
+            const nextParams = builder(active, chart.data.labels[active.index]);
+            window.location.href = buildDrilldownUrl(nextParams);
+        };
+    };
+
+    const statusCtx = document.getElementById('statusChart');
+    if (statusCtx) {
+        const statusChart = new Chart(statusCtx, {
             type: 'bar',
             data: {
                 labels: {{ chart_labels|tojson }},
@@ -185,6 +313,136 @@
                     }
                 }
             }
+        });
+        drilldownClick(statusChart, (_, label) => ({ status: [label] }));
+    }
+
+    const timelineCtx = document.getElementById('timelineChart');
+    if (timelineCtx) {
+        const timelineChart = new Chart(timelineCtx, {
+            type: 'line',
+            data: {
+                labels: {{ chart_temporal_labels|tojson }},
+                datasets: [
+                    {
+                        label: 'Criadas',
+                        data: {{ chart_temporal_criadas|tojson }},
+                        borderColor: '#2563eb',
+                        backgroundColor: 'rgba(37, 99, 235, 0.15)',
+                        tension: 0.25,
+                        fill: true,
+                    },
+                    {
+                        label: 'Finalizadas',
+                        data: {{ chart_temporal_finalizadas|tojson }},
+                        borderColor: '#16a34a',
+                        backgroundColor: 'rgba(22, 163, 74, 0.12)',
+                        tension: 0.25,
+                        fill: true,
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    mode: 'index',
+                    intersect: false,
+                },
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            precision: 0,
+                        }
+                    }
+                }
+            }
+        });
+        drilldownClick(timelineChart, (active) => {
+            const range = temporalRanges[active.index] || ['', ''];
+            return {
+                data_inicio: range[0],
+                data_fim: range[1],
+            };
+        });
+    }
+
+    const priorityCtx = document.getElementById('priorityChart');
+    if (priorityCtx) {
+        const priorityChart = new Chart(priorityCtx, {
+            type: 'doughnut',
+            data: {
+                labels: {{ chart_prioridade_labels|tojson }},
+                datasets: [{
+                    data: {{ chart_prioridade_values|tojson }},
+                    backgroundColor: ['#dc2626', '#f59e0b', '#2563eb'],
+                    borderWidth: 1,
+                    borderColor: '#ffffff',
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                    }
+                }
+            }
+        });
+        drilldownClick(priorityChart, (_, label) => ({ prioridade: label }));
+    }
+
+    const slaCtx = document.getElementById('slaChart');
+    if (slaCtx) {
+        const slaChart = new Chart(slaCtx, {
+            type: 'bar',
+            data: {
+                labels: {{ chart_sla_labels|tojson }},
+                datasets: [{
+                    label: 'Demandas por SLA',
+                    data: {{ chart_sla_values|tojson }},
+                    backgroundColor: ['#16a34a', '#f59e0b', '#ef4444'],
+                    borderRadius: 6,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false,
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            precision: 0,
+                        }
+                    }
+                }
+            }
+        });
+        drilldownClick(slaChart, (_, label) => ({
+            sla_status: label === 'No prazo' ? 'no_prazo' : (label === 'Vencendo' ? 'vencendo' : 'atrasadas'),
+        }));
+    }
+
+    const gerencialForm = document.querySelector('.inline-filter');
+    if (gerencialForm) {
+        ['gerencial-prioridade', 'gerencial-assignee', 'gerencial-data-inicio', 'gerencial-data-fim', 'gerencial-agregacao'].forEach((id) => {
+            const input = document.getElementById(id);
+            if (!input) {
+                return;
+            }
+            input.addEventListener('change', () => gerencialForm.requestSubmit());
         });
     }
 </script>

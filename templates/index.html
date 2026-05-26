@@ -142,7 +142,7 @@
                 <div class="demand-meta">
                     <span>Solicitante: {{ demanda['solicitante'] }}</span>
                     <span>Responsavel executor: {{ demanda.get('assignee_nome', 'Nao atribuido') }}</span>
-                    <span>Data: {{ demanda['data_criacao'] }}</span>
+                    <span>Data: {{ demanda.get('data_criacao_fmt', '-') }}</span>
                     <span>Vencimento SLA: {{ demanda.get('due_date_fmt', '-') }}</span>
                 </div>
 

@@ -15,7 +15,6 @@
             {% if usuario_logado.id %}
                 <a class="nav-link" href="/">Início</a>
                 <a class="nav-link" href="/nova_demanda">Nova Demanda</a>
-                <a class="nav-link" href="/relatorios">Relatórios</a>
                 {% if session.get('role') == 'manager' %}
                     <a class="nav-link" href="/gerencial/dashboard">Painel Gerencial</a>
                 {% endif %}

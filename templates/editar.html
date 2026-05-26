@@ -40,7 +40,7 @@
 
         <div class="field">
             <label for="data_criacao">Data de criação</label>
-            <input id="data_criacao" type="text" value="{{ demanda['data_criacao'] }}" disabled>
+            <input id="data_criacao" type="text" value="{{ demanda.get('data_criacao_fmt', '-') }}" disabled>
         </div>
 
         <div class="field">

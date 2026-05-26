@@ -5,7 +5,7 @@
 [![Flask](https://img.shields.io/badge/Flask-3.x-red)](https://flask.palletsprojects.com)
 [![Database](https://img.shields.io/badge/Database-Supabase%20PostgreSQL-teal)](https://supabase.com)
 
-O **SGDI** é uma aplicação web em Flask para registrar, acompanhar, filtrar e comentar demandas internas. O projeto centraliza solicitações por prioridade, solicitante e histórico de comentários, além de oferecer uma tela de relatórios para visualizar a quantidade de demandas por usuário/solicitante.
+O **SGDI** é uma aplicação web em Flask para registrar, acompanhar, filtrar e comentar demandas internas. O projeto centraliza solicitações por prioridade, solicitante e histórico de comentários, com os indicadores consolidados no painel gerencial.
 
 
 ## Índice
@@ -17,7 +17,7 @@ O **SGDI** é uma aplicação web em Flask para registrar, acompanhar, filtrar e
 - [Banco de Dados](#banco-de-dados)
 - [Fluxo de Uso](#fluxo-de-uso)
 - [Endpoints](#endpoints)
-- [Relatórios](#relatórios)
+- [Painel Gerencial](#painel-gerencial)
 - [Troubleshooting](#troubleshooting)
 
 ## Funcionalidades
@@ -36,7 +36,7 @@ O **SGDI** é uma aplicação web em Flask para registrar, acompanhar, filtrar e
 - Comentários por demanda, com autor e data.
 - Busca de demandas por título usando comparação case-insensitive.
 - Filtros por prioridade e solicitante na tela principal.
-- Relatórios por solicitante, com totais por prioridade e demandas paradas.
+- Painel gerencial com indicadores consolidados, filtros avançados e exportações.
 - Tema claro/escuro com preferência salva no navegador.
 - Layout responsivo com HTML, Jinja2, CSS e JavaScript puro.
 
@@ -68,7 +68,8 @@ sistema-sgdi/
 │   ├── index.html
 │   ├── login.html
 │   ├── nova_demanda.html
-│   └── relatorios.html
+│   └── gerencial/
+│       └── dashboard.html
 └── static/
     ├── style.css
     └── theme.js
@@ -194,7 +195,7 @@ Se RLS estiver ativa nas tabelas, inclua policies equivalentes para `demanda_eve
 4. Acompanhe a lista principal em `/`.
 5. Use filtros por prioridade e solicitante.
 6. Abra os detalhes de uma demanda para comentar.
-7. Acesse `/relatorios` para visualizar indicadores por solicitante.
+7. Se for gerente, acesse `/gerencial/dashboard` para visualizar indicadores consolidados.
 
 ## Endpoints
 
@@ -210,20 +211,21 @@ Se RLS estiver ativa nas tabelas, inclua policies equivalentes para `demanda_eve
 | GET | `/buscar?q=termo` | Busca demandas por título | Sim |
 | GET | `/detalhes/<id>` | Exibe detalhes e comentários | Sim |
 | POST | `/adicionar_comentario/<id>` | Adiciona comentário | Sim |
-| GET | `/relatorios` | Exibe relatórios por solicitante | Sim |
+| GET | `/gerencial/dashboard` | Exibe painel gerencial consolidado | Sim (manager) |
+| GET | `/gerencial/dashboard/exportar/csv` | Exporta painel gerencial em CSV | Sim (manager) |
+| GET | `/gerencial/dashboard/exportar/pdf` | Exporta painel gerencial em PDF | Sim (manager) |
+| GET | `/relatorios` | Redirecionamento temporário para `/gerencial/dashboard` | Sim |
 
-## Relatórios
+## Painel Gerencial
 
-A página `/relatorios` mostra:
+A página `/gerencial/dashboard` concentra os indicadores da operação:
 
-- Total geral de demandas.
-- Total de solicitantes.
-- Total de demandas paradas.
-- Tabela de demandas por solicitante.
-- Contagem por prioridade: Alta, Média e Baixa.
-- Contagem de demandas paradas por solicitante.
-- Filtros por solicitante e prioridade.
-- Lista de demandas filtradas.
+- Total geral de demandas e resumo por status.
+- Demandas por responsável executor.
+- Demandas em atraso por SLA.
+- Evolução temporal de criadas/finalizadas.
+- Filtros por prioridade, status, responsável e período.
+- Exportação consolidada em CSV e PDF.
 
 Critério atual de demanda parada:
 

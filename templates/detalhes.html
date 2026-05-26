@@ -22,7 +22,7 @@
     <div class="detail-list">
         <div class="detail-row"><strong>Solicitante:</strong> {{ demanda['solicitante'] }}</div>
         <div class="detail-row"><strong>Responsavel executor:</strong> {{ demanda.get('assignee_nome', 'Nao atribuido') }}</div>
-        <div class="detail-row"><strong>Data de Criação:</strong> {{ demanda['data_criacao'] }}</div>
+        <div class="detail-row"><strong>Data de Criação:</strong> {{ demanda.get('data_criacao_fmt', '-') }}</div>
         <div class="detail-row"><strong>Vencimento SLA:</strong> {{ demanda.get('due_date_fmt', '-') }}</div>
         <div class="detail-row"><strong>Ultima mudanca de status:</strong> {{ demanda.get('status_updated_at_fmt', '-') }}</div>
         <div class="detail-row"><strong>Resolvida em:</strong> {{ demanda.get('resolved_at_fmt', '-') }}</div>
@@ -62,6 +62,7 @@
     {% set labels = {
         'criada': 'Demanda criada',
         'status_alterado': 'Status alterado',
+        'status_alterado_lote': 'Status alterado',
         'prioridade_alterada': 'Prioridade alterada',
         'assignee_alterado': 'Responsável alterado',
         'reaberta': 'Demanda reaberta'
@@ -73,12 +74,9 @@
                 <article class="timeline-item">
                     <p class="comment-meta">
                         <strong>{{ labels.get(evento['tipo'], evento['tipo']) }}</strong>
-                        por {{ evento.get('autor', {}).get('nome', 'Sistema') }} em {{ evento['created_at'] }}
+                        por {{ evento.get('autor', {}).get('nome', 'Sistema') }} em {{ evento.get('created_at_fmt', '-') }}
                     </p>
-                    <p class="timeline-diff">
-                        antes: {{ evento.get('before_data', {}) }}<br>
-                        depois: {{ evento.get('after_data', {}) }}
-                    </p>
+                    <p class="timeline-diff">{{ evento.get('descricao', 'Alteracao registrada') }}</p>
                 </article>
             {% endfor %}
         </div>
@@ -94,7 +92,7 @@
         <div class="comments-list">
             {% for comentario in comentarios %}
                 <article class="comment">
-                    <p class="comment-meta"><strong>{{ comentario.get('usuarios', {}).get('nome', comentario.get('autor', 'Usuário')) }}</strong> em {{ comentario['data'] }}</p>
+                    <p class="comment-meta"><strong>{{ comentario.get('usuarios', {}).get('nome', comentario.get('autor', 'Usuário')) }}</strong> em {{ comentario.get('data_fmt', '-') }}</p>
                     <p class="comment-text">{{ comentario['comentario'] }}</p>
                 </article>
             {% endfor %}

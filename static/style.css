@@ -171,6 +171,12 @@ a:hover {
     color: var(--text-secondary);
 }
 
+.header-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
 .section-title {
     margin: 0 0 16px;
     color: var(--text-primary);
@@ -714,9 +720,33 @@ small,
     gap: 22px;
 }
 
+.manager-grid--charts {
+    align-items: stretch;
+}
+
 .manager-chart-wrap {
     position: relative;
     min-height: 280px;
+}
+
+.manager-chart-wrap--sm {
+    min-height: 240px;
+}
+
+.filter-pill-row {
+    margin: -8px 0 16px;
+}
+
+.filter-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 6px 10px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+    font-size: 0.8125rem;
+    font-weight: 600;
 }
 
 .report-panel__header {
