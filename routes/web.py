@@ -28,6 +28,7 @@ from repositories import (
     usuarios_repository,
 )
 from services import (
+    audit_log_service,
     auditoria_service,
     authz_service,
     comentarios_service,
@@ -173,7 +174,42 @@ def _descricao_evento_historico(evento, usuarios_por_id):
             "Demanda criada "
             f"(Status: {status_depois}; Prioridade: {prioridade_depois}; Responsavel: {assignee_depois})"
         )
+    if tipo == "editada":
+        campos = after_data.get("campos") or []
+        return "Demanda editada" + (f" ({', '.join(campos)})" if campos else "")
+    if tipo == "excluida":
+        return "Demanda excluida"
+    if tipo == "comentario_criado":
+        return "Comentario criado"
     return "Alteracao registrada"
+
+
+def _registrar_operacao_demanda_web(event_type, demanda_id=None, status_code=200, metadata=None):
+    audit_log_service.registrar_security_event_best_effort(
+        event_type,
+        actor_user_id=session.get("usuario_id"),
+        actor_type="user",
+        entity_type="demanda",
+        entity_id=demanda_id,
+        status_code=status_code,
+        metadata=metadata or {},
+    )
+
+
+def _registrar_log_gerencial(event_type, filtros, status_code=200, metadata=None):
+    audit_log_service.registrar_security_event_best_effort(
+        event_type,
+        actor_user_id=session.get("usuario_id"),
+        actor_type="user",
+        entity_type="gerencial_dashboard",
+        status_code=status_code,
+        request_data={"filtros": filtros},
+        metadata={
+            "filtros": filtros,
+            "filtros_aplicados": bool(_formatar_filtros_gerencial(filtros)),
+            **(metadata or {}),
+        },
+    )
 
 
 def listar_usuarios():
@@ -512,7 +548,16 @@ def cadastro():
             "cargo": cargo,
             "criado_em": datetime.now(timezone.utc).isoformat(),
         }
-        usuarios_repository.inserir(supabase, dados)
+        resposta = usuarios_repository.inserir(supabase, dados)
+        usuario_criado = resposta.data[0] if getattr(resposta, "data", None) else {}
+        audit_log_service.registrar_security_event_best_effort(
+            "user_registered",
+            actor_type="anonymous",
+            entity_type="usuario",
+            entity_id=usuario_criado.get("id"),
+            status_code=201,
+            metadata={"role": usuario_criado.get("role", "user")},
+        )
         flash("Cadastro realizado com sucesso!")
         return redirect("/login")
 
@@ -526,6 +571,14 @@ def login():
         senha = request.form.get("senha", "")
         usuario = usuarios_repository.buscar_por_email(supabase, email)
         if not usuario or not check_password_hash(usuario["senha_hash"], senha):
+            audit_log_service.registrar_security_event_best_effort(
+                "login_failure",
+                actor_type="anonymous",
+                entity_type="usuario",
+                entity_id=usuario.get("id") if usuario else None,
+                status_code=401,
+                metadata={"reason": "invalid_credentials"},
+            )
             flash("E-mail ou senha incorretos")
             return redirect("/login")
 
@@ -534,6 +587,15 @@ def login():
         session["usuario_cargo"] = usuario["cargo"]
         session["role"] = usuario.get("role", "user")
         session.permanent = True
+        audit_log_service.registrar_security_event_best_effort(
+            "login_success",
+            actor_user_id=usuario["id"],
+            actor_type="user",
+            entity_type="usuario",
+            entity_id=usuario["id"],
+            status_code=200,
+            metadata={"role": session["role"]},
+        )
 
         flash(f"Bem-vindo, {usuario['nome']}!")
         return redirect("/")
@@ -543,6 +605,16 @@ def login():
 
 @web_bp.route("/logout")
 def logout():
+    usuario_id = session.get("usuario_id")
+    audit_log_service.registrar_security_event_best_effort(
+        "logout",
+        actor_user_id=usuario_id,
+        actor_type="user" if usuario_id else "anonymous",
+        entity_type="usuario",
+        entity_id=usuario_id,
+        status_code=302,
+        metadata={"role": session.get("role")},
+    )
     session.clear()
     return redirect("/login")
 
@@ -666,6 +738,7 @@ def atualizar_status_lote():
     atualizadas = 0
     sem_permissao = 0
     transicao_invalida = 0
+    ids_atualizados = []
     agora = datetime.now(timezone.utc)
 
     for demanda in demandas:
@@ -696,8 +769,19 @@ def atualizar_status_lote():
             autor_id=session.get("usuario_id"),
         )
         atualizadas += 1
+        ids_atualizados.append(demanda["id"])
 
     if atualizadas:
+        _registrar_operacao_demanda_web(
+            "demanda_status_batch_updated_web",
+            metadata={
+                "status": novo_status,
+                "updated_count": atualizadas,
+                "forbidden_count": sem_permissao,
+                "invalid_transition_count": transicao_invalida,
+                "demanda_ids": ids_atualizados,
+            },
+        )
         flash(f"{atualizadas} demanda(s) atualizada(s) em lote.")
     if sem_permissao:
         flash(f"{sem_permissao} demanda(s) ignorada(s) por falta de permissao.")
@@ -724,6 +808,11 @@ def gerencial_dashboard():
     dados_dashboard = dataset["dados_dashboard"]
     usuarios = listar_usuarios()
     export_qs = urlencode(request.args.to_dict(flat=False), doseq=True)
+    _registrar_log_gerencial(
+        "management_dashboard_access",
+        filtros,
+        metadata={"quantidade_registros_consultados": dados_dashboard["total_demandas"]},
+    )
 
     return render_template(
         "gerencial/dashboard.html",
@@ -759,6 +848,7 @@ def exportar_gerencial_csv():
     dados_dashboard = dataset["dados_dashboard"]
     demandas = dataset["demandas"]
     filtros_txt = dataset["filtros_txt"]
+    quantidade_exportada = len(demandas)
 
     output = io.StringIO()
     writer = csv.writer(output, delimiter=";")
@@ -875,6 +965,15 @@ def exportar_gerencial_csv():
     response.headers["Content-Disposition"] = (
         f'attachment; filename="gerencial_dashboard_{datetime.now().strftime("%Y%m%d_%H%M")}.csv"'
     )
+    _registrar_log_gerencial(
+        "management_export_csv",
+        filtros,
+        metadata={
+            "formato": "csv",
+            "quantidade_registros_exportados": quantidade_exportada,
+            "total_demandas": dados_dashboard["total_demandas"],
+        },
+    )
     return response
 
 
@@ -887,6 +986,7 @@ def exportar_gerencial_pdf():
     dados_dashboard = dataset["dados_dashboard"]
     demandas = dataset["demandas"]
     filtros_txt = dataset["filtros_txt"]
+    quantidade_exportada = len(demandas)
 
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(
@@ -1119,6 +1219,15 @@ def exportar_gerencial_pdf():
     response.headers["Content-Disposition"] = (
         f'attachment; filename="gerencial_dashboard_{datetime.now().strftime("%Y%m%d_%H%M")}.pdf"'
     )
+    _registrar_log_gerencial(
+        "management_export_pdf",
+        filtros,
+        metadata={
+            "formato": "pdf",
+            "quantidade_registros_exportados": quantidade_exportada,
+            "total_demandas": dados_dashboard["total_demandas"],
+        },
+    )
     return response
 
 
@@ -1168,6 +1277,16 @@ def nova_demanda():
                     "assignee_id": demanda_criada.get("assignee_id"),
                 },
                 autor_id=session.get("usuario_id"),
+            )
+            _registrar_operacao_demanda_web(
+                "demanda_created_web",
+                demanda_id=demanda_criada.get("id"),
+                status_code=201,
+                metadata={
+                    "status": demanda_criada.get("status", "Aberta"),
+                    "prioridade": demanda_criada.get("prioridade"),
+                    "assignee_id": demanda_criada.get("assignee_id"),
+                },
             )
         flash("Demanda criada com sucesso!")
         return redirect("/")
@@ -1268,6 +1387,14 @@ def editar(id):
         prioridade_final = dados.get("prioridade", prioridade_original)
         assignee_final = dados.get("assignee_id", assignee_original)
 
+        campos_editados = {}
+        for campo in ("titulo", "descricao", "solicitante"):
+            if campo in dados and dados[campo] != demanda_atual.get(campo):
+                campos_editados[campo] = {
+                    "antes": demanda_atual.get(campo),
+                    "depois": dados[campo],
+                }
+
         if status_final != status_original:
             tipo_evento_status = (
                 "reaberta"
@@ -1300,12 +1427,38 @@ def editar(id):
                 }
             )
 
+        if campos_editados:
+            eventos_para_registrar.append(
+                {
+                    "tipo": "editada",
+                    "before_data": {
+                        campo: valores["antes"]
+                        for campo, valores in campos_editados.items()
+                    },
+                    "after_data": {
+                        "campos": list(campos_editados.keys()),
+                        **{
+                            campo: valores["depois"]
+                            for campo, valores in campos_editados.items()
+                        },
+                    },
+                }
+            )
+
         demandas_repository.atualizar(supabase, id, dados)
         auditoria_service.registrar_eventos(
             supabase,
             demanda_id=id,
             eventos=eventos_para_registrar,
             autor_id=session.get("usuario_id"),
+        )
+        _registrar_operacao_demanda_web(
+            "demanda_updated_web",
+            demanda_id=id,
+            metadata={
+                "eventos": [evento["tipo"] for evento in eventos_para_registrar],
+                "campos": sorted(dados.keys()),
+            },
         )
         flash("Demanda atualizada!")
         return redirect("/")
@@ -1340,7 +1493,28 @@ def deletar(id):
         flash("Voce nao pode excluir demanda de outro usuario.")
         return redirect("/")
 
+    auditoria_service.registrar_evento(
+        supabase,
+        demanda_id=id,
+        tipo="excluida",
+        before_data={
+            "status": demanda.get("status"),
+            "prioridade": demanda.get("prioridade"),
+            "assignee_id": demanda.get("assignee_id"),
+        },
+        after_data={},
+        autor_id=session.get("usuario_id"),
+    )
     demandas_repository.remover(supabase, id)
+    _registrar_operacao_demanda_web(
+        "demanda_deleted_web",
+        demanda_id=id,
+        metadata={
+            "status": demanda.get("status"),
+            "prioridade": demanda.get("prioridade"),
+            "assignee_id": demanda.get("assignee_id"),
+        },
+    )
     flash("Demanda deletada!")
     return redirect("/")
 
@@ -1421,5 +1595,17 @@ def adicionar_comentario(demanda_id):
         comentario=request.form["comentario"],
         autor_id=session.get("usuario_id"),
         autor_nome=session.get("usuario_nome"),
+    )
+    auditoria_service.registrar_evento(
+        supabase,
+        demanda_id=demanda_id,
+        tipo="comentario_criado",
+        before_data={},
+        after_data={"comentario": "adicionado"},
+        autor_id=session.get("usuario_id"),
+    )
+    _registrar_operacao_demanda_web(
+        "demanda_comment_created_web",
+        demanda_id=demanda_id,
     )
     return redirect(f"/detalhes/{demanda_id}")

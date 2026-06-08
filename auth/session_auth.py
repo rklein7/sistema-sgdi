@@ -3,6 +3,8 @@ from functools import wraps
 
 from flask import abort, flash, redirect, request, session
 
+from services import audit_log_service
+
 
 def login_required(view_func):
     @wraps(view_func)
@@ -19,6 +21,15 @@ def manager_required(view_func):
     @wraps(view_func)
     def wrapped_view(*args, **kwargs):
         if session.get("role") != "manager":
+            audit_log_service.registrar_security_event_best_effort(
+                "manager_route_access_denied",
+                status_code=403,
+                metadata={
+                    "required_role": "manager",
+                    "actual_role": session.get("role", "anonymous"),
+                    "requested_endpoint": request.endpoint,
+                },
+            )
             flash("Acesso permitido apenas para perfil gerencial.")
             return redirect("/dashboard")
         return view_func(*args, **kwargs)
@@ -46,8 +57,18 @@ def register_auth_handlers(app):
                 "X-CSRF-Token"
             )
             if not session_token or not request_token:
+                audit_log_service.registrar_security_event_best_effort(
+                    "csrf_failure",
+                    status_code=400,
+                    metadata={"reason": "missing_token"},
+                )
                 abort(400, description="CSRF token ausente.")
             if not secrets.compare_digest(session_token, request_token):
+                audit_log_service.registrar_security_event_best_effort(
+                    "csrf_failure",
+                    status_code=400,
+                    metadata={"reason": "invalid_token"},
+                )
                 abort(400, description="CSRF token invalido.")
 
     @app.context_processor

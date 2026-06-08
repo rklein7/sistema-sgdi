@@ -7,7 +7,13 @@ from core.config import create_supabase_client
 from core.dtos import serialize_demanda
 from core.errors import api_error, api_success, register_api_error_handlers
 from repositories import demandas_repository, usuarios_repository
-from services import auditoria_service, authz_service, comentarios_service, demandas_service
+from services import (
+    audit_log_service,
+    auditoria_service,
+    authz_service,
+    comentarios_service,
+    demandas_service,
+)
 
 api_v1_bp = Blueprint("api_v1", __name__, url_prefix="/api/v1")
 register_api_error_handlers(api_v1_bp)
@@ -365,6 +371,20 @@ def criar_demanda():
             },
             autor_id=actor["usuario_id"],
         )
+        audit_log_service.registrar_api_action_best_effort(
+            "api_demanda_criada",
+            actor_user_id=actor["usuario_id"],
+            entity_type="demanda",
+            entity_id=demanda_criada.get("id"),
+            status_code=201,
+            request_data=payload,
+            metadata={
+                "demanda_id": demanda_criada.get("id"),
+                "status": demanda_criada.get("status", "Aberta"),
+                "prioridade": demanda_criada.get("prioridade"),
+                "assignee_id": demanda_criada.get("assignee_id"),
+            },
+        )
 
     demanda_serializada = serialize_demanda(
         demandas_repository.buscar_por_id_com_assignee(supabase, demanda_criada.get("id")).data
@@ -510,6 +530,19 @@ def atualizar_demanda(demanda_id):
         eventos=eventos_para_registrar,
         autor_id=actor["usuario_id"],
     )
+    audit_log_service.registrar_api_action_best_effort(
+        "api_demanda_atualizada",
+        actor_user_id=actor["usuario_id"],
+        entity_type="demanda",
+        entity_id=demanda_id,
+        status_code=200,
+        request_data=payload,
+        metadata={
+            "demanda_id": demanda_id,
+            "updated_fields": sorted(dados_update.keys()),
+            "event_types": [evento["tipo"] for evento in eventos_para_registrar],
+        },
+    )
 
     demanda_atualizada = demandas_repository.buscar_por_id_com_assignee(supabase, demanda_id)
     return api_success(serialize_demanda(demanda_atualizada.data), message="demanda_atualizada")
@@ -534,6 +567,20 @@ def remover_demanda(demanda_id):
         return api_error("FORBIDDEN", "Acesso negado.", 403)
 
     demandas_repository.remover(supabase, demanda_id)
+    audit_log_service.registrar_api_action_best_effort(
+        "api_demanda_excluida",
+        actor_user_id=actor["usuario_id"],
+        entity_type="demanda",
+        entity_id=demanda_id,
+        status_code=200,
+        request_data={},
+        metadata={
+            "demanda_id": demanda_id,
+            "status": demanda.get("status"),
+            "prioridade": demanda.get("prioridade"),
+            "assignee_id": demanda.get("assignee_id"),
+        },
+    )
     return api_success({"id": demanda_id}, message="demanda_removida")
 
 
@@ -585,7 +632,7 @@ def criar_comentario_demanda(demanda_id):
     if erros:
         return api_error("UNPROCESSABLE_ENTITY", "Payload invalido.", 422, {"fields": erros})
 
-    comentarios_service.criar_comentario_demanda(
+    comentario_resposta = comentarios_service.criar_comentario_demanda(
         supabase,
         demanda_id=demanda_id,
         comentario=comentario,
@@ -599,6 +646,19 @@ def criar_comentario_demanda(demanda_id):
         before_data={},
         after_data={"comentario": "adicionado"},
         autor_id=actor["usuario_id"],
+    )
+    comentario_criado = comentario_resposta.data[0] if comentario_resposta.data else {}
+    audit_log_service.registrar_api_action_best_effort(
+        "api_comentario_criado",
+        actor_user_id=actor["usuario_id"],
+        entity_type="comentario",
+        entity_id=comentario_criado.get("id") or demanda_id,
+        status_code=201,
+        request_data=payload,
+        metadata={
+            "demanda_id": demanda_id,
+            "comentario_id": comentario_criado.get("id"),
+        },
     )
 
     return api_success({"demanda_id": demanda_id, "comentario": comentario}, message="comentario_criado", status_code=201)
@@ -688,6 +748,22 @@ def atualizar_status_lote():
             autor_id=actor["usuario_id"],
         )
         atualizadas.append({"id": demanda_id, "from": status_atual, "to": novo_status})
+
+    audit_log_service.registrar_api_action_best_effort(
+        "api_lote_status_atualizado",
+        actor_user_id=actor["usuario_id"],
+        entity_type="demanda",
+        entity_id=None,
+        status_code=200,
+        request_data=payload,
+        metadata={
+            "status_aplicado": dados["status"],
+            "updated_count": len(atualizadas),
+            "failed_count": len(falhas),
+            "updated_ids": [item["id"] for item in atualizadas],
+            "failed_ids": [item["id"] for item in falhas],
+        },
+    )
 
     return api_success(
         {

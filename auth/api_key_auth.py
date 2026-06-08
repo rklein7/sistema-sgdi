@@ -8,6 +8,7 @@ from functools import wraps
 from flask import abort, current_app, g, request
 
 from core.config import create_supabase_client
+from services import audit_log_service
 
 logger = logging.getLogger("sgdi.api")
 _RATE_LIMIT_BUCKETS = defaultdict(deque)
@@ -140,10 +141,32 @@ def require_api_key(scopes=None):
         def wrapped(*args, **kwargs):
             api_key = get_request_api_key()
             if not api_key:
+                audit_log_service.registrar_security_event_best_effort(
+                    "api_auth_failed",
+                    actor_type="anonymous",
+                    status_code=401,
+                    request_data={},
+                    metadata={
+                        "api_key_id": None,
+                        "reason": "missing_api_key",
+                        "required_scopes": sorted(required_scopes),
+                    },
+                )
                 abort(401, description="API key ausente.")
 
             key_data = _resolve_key_scopes(api_key)
             if key_data is None:
+                audit_log_service.registrar_security_event_best_effort(
+                    "api_auth_failed",
+                    actor_type="api_key",
+                    status_code=401,
+                    request_data={},
+                    metadata={
+                        "api_key_id": _api_key_id(api_key),
+                        "reason": "invalid_api_key",
+                        "required_scopes": sorted(required_scopes),
+                    },
+                )
                 abort(401, description="API key invalida.")
 
             if not _rate_limit_allowed(key_data["id"]):
@@ -154,6 +177,23 @@ def require_api_key(scopes=None):
             if required_scopes and not _has_required_scopes(
                 granted_scopes, required_scopes
             ):
+                g.api_key_id = key_data["id"]
+                g.api_auth = {
+                    "authenticated": True,
+                    "key_id": key_data["id"],
+                    "scopes": sorted(granted_scopes),
+                }
+                audit_log_service.registrar_security_event_best_effort(
+                    "api_scope_insufficient",
+                    actor_type="api_key",
+                    status_code=403,
+                    request_data={},
+                    metadata={
+                        "api_key_id": key_data["id"],
+                        "granted_scopes": sorted(granted_scopes),
+                        "required_scopes": sorted(required_scopes),
+                    },
+                )
                 abort(403, description="Escopo insuficiente para este recurso.")
 
             g.request_started_at = time.perf_counter()

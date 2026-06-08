@@ -6,11 +6,13 @@ from auth.api_key_auth import configure_api_keys, register_api_access_logging
 from auth.session_auth import register_auth_handlers
 from core.config import configure_flask_app, env_to_bool
 from routes import api_docs_bp, api_v1_bp, web_bp
+from services.audit_log_service import register_audit_logging
 
 app = Flask(__name__)
 configure_flask_app(app)
 configure_api_keys(app)
 register_api_access_logging(app)
+register_audit_logging(app)
 register_auth_handlers(app)
 app.register_blueprint(web_bp)
 app.register_blueprint(api_v1_bp)

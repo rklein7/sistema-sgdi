@@ -8,7 +8,7 @@ def criar_comentario_demanda(supabase, demanda_id, comentario, autor_id, autor_n
         "autor": autor_nome,
         "autor_id": autor_id,
     }
-    comentarios_repository.inserir(supabase, dados)
+    return comentarios_repository.inserir(supabase, dados)
 
 
 def listar_comentarios_demanda(supabase, demanda_id):
